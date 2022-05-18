@@ -11,17 +11,20 @@
 
 int main(int argc, char **argv) {
     bool running = true;
+    char buffer_name[256], file_name[256];
     
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s <file>\n", argv[0]);
-        return 1;
+    if (argc == 2) {
+        strcpy(file_name, argv[1]);
+        remove_directory(buffer_name, file_name);
+    } else {
+        strcpy(buffer_name, "*scratch*");
     }
 
     SDL_Init(SDL_INIT_VIDEO);
     TTF_Init();
 
-    char title[256];
-    sprintf(title, "ame - %s", argv[1]);
+    char title[512];
+    sprintf(title, "%s - ame", buffer_name);
     window = SDL_CreateWindow(title,
                               SDL_WINDOWPOS_UNDEFINED,
                               SDL_WINDOWPOS_UNDEFINED,
@@ -30,8 +33,12 @@ int main(int argc, char **argv) {
                               SDL_WINDOW_RESIZABLE);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
 
-    struct Buffer *buf = buffer_allocate(argv[1]);
-    buffer_load_file(buf, argv[1]);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+
+    struct Buffer *buf = buffer_allocate(buffer_name);
+    if (argc == 2) {
+        buffer_load_file(buf, file_name);
+    }
 
     font = TTF_OpenFont("consola.ttf", 18);
     TTF_SizeText(font, " ", &font_w, &font_h);
@@ -59,7 +66,8 @@ int main(int argc, char **argv) {
         buffer_draw(buf);
         SDL_RenderPresent(renderer);
 
-        buf->y_scroll = lerp(buf->y_scroll, buf->target_y_scroll, 0.5);
+        buf->scroll.y = lerp(buf->scroll.y, buf->scroll.target_y, 0.5);
+        buf->scroll.x = lerp(buf->scroll.x, buf->scroll.target_x, 0.5);
 
         Uint32 end = SDL_GetTicks();
         Uint32 d = end-start;

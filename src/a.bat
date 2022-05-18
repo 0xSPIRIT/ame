@@ -1,4 +1,4 @@
 @echo off
 pushd ..\bin\
-call ame.exe test.txt
+call ame.exe %1
 popd
