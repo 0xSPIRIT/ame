@@ -295,6 +295,8 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
             }
         }
     } 
+    mark_update(buf->mark);
+
     /* We'll leave this alone for now. Not very important. */
     /*else if (event->type == SDL_MOUSEBUTTONDOWN && event->button.button == SDL_BUTTON_LEFT) {
         int x = (event->button.x + 3)/font_w;

@@ -19,13 +19,26 @@ void mark_deallocate(struct Mark *mark) {
 
 void mark_set(struct Mark *mark) {
     if (mark->start) free(mark->start);
+    if (mark->end) free(mark->end);
     mark->start = alloc(1, sizeof(struct Point));
+    mark->end = alloc(1, sizeof(struct Point));
     memcpy(mark->start, &mark->buf->point, sizeof(mark->buf->point));
-    mark->end = &mark->buf->point;
+    memcpy(mark->end, &mark->buf->point, sizeof(mark->buf->point));
     mark->active = true;
 }
 
+void mark_update(struct Mark *mark) {
+    if (mark->active) {
+        if (mark->swapped)
+            memcpy(mark->start, &mark->buf->point, sizeof(mark->buf->point));
+        else
+            memcpy(mark->end, &mark->buf->point, sizeof(mark->buf->point));
+    }
+}
+
 void mark_unset(struct Mark *mark) {
+    if (mark->start) free(mark->start);
+    if (mark->end) free(mark->end);
     mark->start = mark->end = NULL;
     mark->active = false;
 }
@@ -73,7 +86,7 @@ int mark_get_length(struct Mark *mark) {
 
 void mark_cut_text(struct Mark *mark) {
     mark_swap_ends_if(mark);
-    memcpy(&mark->buf->point, mark->end, sizeof(struct Point));
+    mark->buf->point = *mark->end;
     while (true) {
         buffer_backspace(mark->buf);
         if (mark->buf->point.line == mark->start->line && mark->buf->point.pos == mark->start->pos) {
@@ -123,5 +136,6 @@ void mark_swap_ends_if(struct Mark *mark) {
        (mark->start->line == mark->end->line && mark->start->pos > mark->end->pos)) {
         mark->start = mark->end;
         mark->end = temp;
+        mark->swapped = !mark->swapped;
     }
 }

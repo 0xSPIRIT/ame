@@ -8,9 +8,8 @@ x Copy.
 x Cut
 x Horizontal scrolling.
 - Mode-line.
+- Mouse support.
 - Prompts/popups for:
   - Open file
   - Save file as...
   - Multiple buffers / Switch to buffer.
-
-Pretty epic!!!
