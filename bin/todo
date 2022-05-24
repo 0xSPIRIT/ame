@@ -1,15 +1,14 @@
 Features to implement:
 
-x Be able to open the program without argument.
-x Remove directory from buffer name.
-x ctrl+left, ctrl+right, ctrl+backspace, ctrl+del, etc.
-x Selection.
-x Copy.
-x Cut
-x Horizontal scrolling.
-- Mode-line.
-- Mouse support.
-- Prompts/popups for:
+x Fix cutting (bug).
+x Pgdown and pgup modify the point position as well.
+x Mode-line.
+x Overwrite selection when pasting.
+x Return at start of the last line is wrong.
+- (Minibuffer) Prompts/popups for:
   - Open file
   - Save file as...
   - Multiple buffers / Switch to buffer.
+- Mouse support
+- Ctrl+shift+[home,end,left,right,up,down]
+- Streamline x_scroll and y_scroll switching- reduce the copy-pasting

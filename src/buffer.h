@@ -6,6 +6,8 @@
 #include <stdbool.h>
 #include <SDL2/SDL.h>
 
+extern struct Buffer *curbuf, *prevbuf;
+
 struct Point {
     struct Line *line; /* The row */
     int pos;           /* The column */
@@ -19,11 +21,19 @@ struct ScrollBar {
 struct Buffer {
     char name[BUF_NAME_LEN];
     char filename[BUF_NAME_LEN];
+
+    int x, y;                /* Offsets for the entire buffer. */
+
     struct Line *start_line; /* Doubly linked list of lines */
+    int line_count;
     struct Point point;      /* Location of the point (cursor) */
     bool edited;             /* Flag to show if buffer is edited */
     struct ScrollBar scroll;
     struct Mark *mark;       /* Area of selection (called the mark) */
+
+    bool is_singular;        /* Singular means a special buffer where there's only one line, 
+                                and something important happens at RETURN. */
+    int (*on_return)();      /* Function that executes once at RETURN if is_singular=true */
 };
 
 struct Buffer *buffer_allocate(char name[BUF_NAME_LEN]);
@@ -50,6 +60,9 @@ struct Line {
 
     char *str;            /* Dynamically allocated array of chars */
     int len, cap;
+
+    char pre_str[256];    /* String that displays before the main string. 
+                             Used in minibuffer for prompts. */
 };
 
 struct Line *line_allocate(struct Buffer *buf);

@@ -8,11 +8,17 @@
 #include "globals.h"
 #include "util.h"
 #include "mark.h"
+#include "modeline.h"
+#include "minibuffer.h"
+
+struct Buffer *curbuf = NULL;
+struct Buffer *prevbuf = NULL;
 
 struct Buffer *buffer_allocate(char name[BUF_NAME_LEN]) {
     struct Buffer *buf = alloc(1, sizeof(struct Buffer));
     strcpy(buf->name, name);
     buf->start_line = line_allocate(buf);
+    buf->line_count = 1;
 
     buf->mark = mark_allocate(buf);
 
@@ -37,8 +43,8 @@ void buffer_deallocate(struct Buffer *buf) {
 static void buffer_draw_point(struct Buffer *buf) {
     int spacing = 3;
     const SDL_Rect dst = {
-        buf->scroll.x + buf->point.pos * font_w + spacing,
-        buf->scroll.y + buf->point.line->y * font_h + spacing * buf->point.line->y,
+        buf->x + buf->scroll.x + buf->point.pos * font_w + spacing,
+        buf->y + buf->scroll.y + buf->point.line->y * font_h + spacing * buf->point.line->y,
         font_w,
         font_h
     };
@@ -57,8 +63,13 @@ void buffer_draw(struct Buffer *buf) {
     for (line = buf->start_line; line; line = line->next) {
         int pos = yoff*3 + yoff*font_h;
         if (pos > -font_h-buf->scroll.y && pos < window_height-buf->scroll.y) { /* Culling */
-            if (line == buf->point.line) { /* Draw a little highlight on current line */
-                SDL_Rect r = { buf->scroll.x + 3 + buf->scroll.x, font_h*yoff + 3*yoff + buf->scroll.y, window_width-6, font_h };
+            if (line == buf->point.line && buf == curbuf && buf != minibuf) { /* Draw a little highlight on current line */
+                SDL_Rect r = { 
+                    buf->x + buf->scroll.x + 3 + buf->scroll.x, 
+                    buf->y + font_h*yoff + 3*yoff + buf->scroll.y, 
+                    window_width-6, 
+                    font_h
+                };
                 const int alpha = 255-240;
                 SDL_SetRenderDrawColor(renderer, 0, 0, 0, alpha);
                 SDL_RenderFillRect(renderer, &r);
@@ -70,12 +81,19 @@ void buffer_draw(struct Buffer *buf) {
         yoff++;
     }
 
-    buffer_draw_point(buf);
+    if (buf == curbuf)
+        buffer_draw_point(buf);
+    
+    if (!buf->is_singular)
+        buffer_modeline_draw(buf);
 }
 
 static void buffer_limit_point(struct Buffer *buf) {
     if (buf->point.pos < 0) buf->point.pos = 0;
     if (buf->point.pos > buf->point.line->len) buf->point.pos = buf->point.line->len;
+    if (3 + buf->point.pos * font_w < -buf->scroll.target_x) {
+        buf->scroll.target_x = -buf->point.pos * font_w;
+    }
 }
 
 void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
@@ -89,7 +107,15 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
   keydown:
         switch (event->key.keysym.sym) {
             case SDLK_RETURN: {
-                buffer_newline(buf);
+                if (!buf->is_singular) {
+                    buffer_newline(buf);
+                } else {
+                    buf->on_return();
+                }
+                int pos = buf->point.line->y*3 + buf->point.line->y*font_h;
+                if (pos < -font_h-buf->scroll.y || pos > window_height-buf->scroll.y-font_h*2) {
+                    buf->scroll.target_y = -font_h+(window_height-font_h*2)-(3*buf->point.line->y + buf->point.line->y * font_h);
+                }
                 break;
             }
             case SDLK_TAB: {
@@ -124,6 +150,9 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                         line_remove(point_prev.line);
                         buf->point.pos = 0;
                     }
+                } else if (buf->mark->active) {
+                    mark_delete_text(buf->mark);
+                    mark_unset(buf->mark);
                 } else {
                     if (buf->point.pos < buf->point.line->len) {
                         line_delete_char(buf->point.line, buf->point.pos);
@@ -144,6 +173,9 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                     buffer_backward_word(buf);
                     if (point_prev.line == buf->point.line)
                         line_delete_chars_range(buf->point.line, buf->point.pos, point_prev.pos);
+                } else if (buf->mark->active) {
+                    mark_delete_text(buf->mark);
+                    mark_unset(buf->mark);
                 } else {
                     buffer_backspace(buf);
                 }
@@ -211,8 +243,8 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                     buffer_limit_point(buf);
                 }
                 int pos = buf->point.line->y*3 + buf->point.line->y*font_h;
-                if (pos < -font_h-buf->scroll.y || pos > window_height-buf->scroll.y) {
-                    buf->scroll.target_y = -font_h+window_height-(3*buf->point.line->y + buf->point.line->y * font_h);
+                if (pos < -font_h-buf->scroll.y || pos > window_height-buf->scroll.y-font_h*2) {
+                    buf->scroll.target_y = -font_h+(window_height-font_h*2)-(3*buf->point.line->y + buf->point.line->y * font_h);
                 }
                 break;
             }
@@ -242,8 +274,8 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                                 buf->point.line = buf->point.line->next;
                             }
                             buf->point.pos = buf->point.line->len;
-                            if (3*buf->point.line->y + buf->point.line->y * font_h > window_height - buf->scroll.y) {
-                                buf->scroll.target_y = -font_h+window_height-(3*buf->point.line->y + buf->point.line->y * font_h);
+                            if (3*buf->point.line->y + buf->point.line->y * font_h > window_height - font_h*2 - buf->scroll.y) {
+                                buf->scroll.target_y = -font_h+(window_height-font_h*2)-(3*buf->point.line->y + buf->point.line->y * font_h);
                             }
                         }
                         buf->point.pos = buf->point.line->len;
@@ -256,12 +288,20 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
             }
 
             case SDLK_PAGEDOWN: {
+                int i;
                 buf->scroll.target_y -= window_height - font_h * 2;
+                for (i = 0; i < (window_height/(font_h+6)) + 2; i++)
+                    if (buf->point.line->next) buf->point.line = buf->point.line->next;
+                buffer_limit_point(buf);
                 break;
             }
             case SDLK_PAGEUP: {
+                int i;
                 buf->scroll.target_y += window_height - font_h * 2;
                 if (buf->scroll.target_y > 0) buf->scroll.target_y = 0;
+                for (i = 0; i < (window_height/(font_h+6)) + 2; i++)
+                    if (buf->point.line->prev) buf->point.line = buf->point.line->prev;
+                buffer_limit_point(buf);
                 break;
             }
 
@@ -283,12 +323,16 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
             }
             case SDLK_v: {
                 if (is_ctrl()) {
+                    if (buf->mark->active) {
+                        mark_delete_text(buf->mark);
+                        mark_unset(buf->mark);
+                    }
                     buffer_paste_text(buf);
                 }
                 break;
             }
             case SDLK_s: {
-                if (is_ctrl() && buf->edited) {
+                if (is_ctrl() && buf->edited && !buf->is_singular) {
                     buffer_save(buf);
                 }
                 break;
@@ -338,42 +382,49 @@ void buffer_backspace(struct Buffer *buf) {
 }
 
 void buffer_newline(struct Buffer *buf) {
-    if (buf->point.line->next) { /* Do we have more lines after the current line? */
+    if (!buf->point.line->next) {
+        buf->point.line->next = line_allocate(buf);
+        buf->point.line->next->y = buf->point.line->y+1;
+        buf->point.line->next->prev = buf->point.line;
+        if (buf->point.pos == buf->point.line->len) {
+            buf->point.line = buf->point.line->next;
+            buf->point.pos = 0;
+        } else {
+            line_type_string(buf->point.line->next, 0, buf->point.line->str + buf->point.pos);
+            line_delete_chars_range(buf->point.line, buf->point.pos, buf->point.line->len);
+            buf->point.line = buf->point.line->next;
+        }
+    } else {
         struct Line *new_line, *old_next;
-
+    
         old_next = buf->point.line->next;
         new_line = line_allocate(buf);
-
+    
         line_type_string(new_line, 0, buf->point.line->str + buf->point.pos);
         int amt_chars_deleted = buf->point.line->len - buf->point.pos;
         line_delete_chars_range(buf->point.line, buf->point.pos, buf->point.line->len);
-
+    
         new_line->y = old_next->y;
         buf->point.line->next = new_line;
         new_line->next = old_next;
         old_next->prev = new_line;
         new_line->prev = buf->point.line;
-
+    
         buf->point.line = buf->point.line->next;
         if (amt_chars_deleted > 0) {
             buf->point.pos = 0;
         }
-     
+         
         buffer_limit_point(buf);
-
+    
         /* Change all the line numbers for each subsequent line. */
         struct Line *l;
         for (l = old_next; l; l = l->next) {
             l->y++;
         }
-    } else { /* Current line is the last line in the buffer. */
-        buf->point.line->next = line_allocate(buf);
-        buf->point.line->next->y = buf->point.line->y+1;
-        buf->point.line->next->prev = buf->point.line;
-        buf->point.line = buf->point.line->next;
-        buf->point.pos = 0;
     }
     buffer_set_edited(buf, true);
+    buf->line_count++;
 }
 
 /* Pastes text at point. */
@@ -397,8 +448,8 @@ void buffer_paste_text(struct Buffer *buf) {
 
     
     int y = 3*buf->point.line->y + buf->point.line->y * font_h;
-    if (y < -buf->scroll.target_y || y > window_height-buf->scroll.target_y) { 
-        buf->scroll.target_y = -font_h+window_height-y;
+    if (y < -buf->scroll.target_y || y > window_height-font_h*2-buf->scroll.target_y) { 
+        buf->scroll.target_y = -font_h+window_height-font_h*2-y;
     }
     if (3 + buf->point.pos * font_w > window_width-buf->scroll.target_x) {
         buf->scroll.target_x = -buf->point.pos * font_w + window_width - font_w - 3;
@@ -539,6 +590,7 @@ void line_remove(struct Line *line) {
     }
 
     line_deallocate(line);
+    line->buf->line_count++;
 }
 
 void line_type(struct Line *line, int pos, char c) {
@@ -590,23 +642,43 @@ void line_delete_chars_range(struct Line *line, int start, int end) {
 }
 
 void line_draw(struct Line *line, int yoff, int scroll_x, int scroll_y) {
-    if (line->len == 0) return;
+    if (line->len == 0 && strlen(line->pre_str) == 0) return;
 
     int spacing = 3;
 
-    SDL_Surface *surf = TTF_RenderText_Blended(font, line->str, (SDL_Color){0, 0, 0, 255});
-    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surf);
+    int pre_width = 0;
 
-    const SDL_Rect dst = (SDL_Rect){
-        scroll_x + spacing, 
-        scroll_y + yoff * spacing + yoff * font_h,
-        surf->w, 
-        surf->h
-    };
-    SDL_RenderCopy(renderer, texture, NULL, &dst);
+    if (strlen(line->pre_str) > 0) {
+        SDL_Surface *pre_surf = TTF_RenderText_Blended(font, line->pre_str, (SDL_Color){255, 0, 0, 255});
+        SDL_Texture *pre_texture = SDL_CreateTextureFromSurface(renderer, pre_surf);
 
-    SDL_FreeSurface(surf);
-    SDL_DestroyTexture(texture);
+        pre_width = pre_surf->w;
+
+        const SDL_Rect dst = (SDL_Rect){
+            line->buf->x + scroll_x + spacing,
+            line->buf->y + scroll_y + yoff * spacing + yoff * font_h,
+            pre_surf->w, 
+            pre_surf->h
+        };
+        SDL_RenderCopy(renderer, pre_texture, NULL, &dst);
+        SDL_FreeSurface(pre_surf);
+        SDL_DestroyTexture(pre_texture);
+    }
+
+    if (line->len > 0) {
+        SDL_Surface *surf = TTF_RenderText_Blended(font, line->str, (SDL_Color){0, 0, 0, 255});
+        SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surf);
+
+        const SDL_Rect dst = (SDL_Rect){
+            line->buf->x + scroll_x + spacing + pre_width, 
+            line->buf->y + scroll_y + yoff * spacing + yoff * font_h,
+            surf->w, 
+            surf->h
+        };
+        SDL_RenderCopy(renderer, texture, NULL, &dst);
+        SDL_FreeSurface(surf);
+        SDL_DestroyTexture(texture);
+    }
 }
 
 void line_debug(struct Line *line) {

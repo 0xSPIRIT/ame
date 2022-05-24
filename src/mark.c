@@ -84,8 +84,7 @@ int mark_get_length(struct Mark *mark) {
     return len;
 }
 
-void mark_cut_text(struct Mark *mark) {
-    mark_swap_ends_if(mark);
+void mark_delete_text(struct Mark *mark) {
     mark->buf->point = *mark->end;
     while (true) {
         buffer_backspace(mark->buf);
@@ -93,6 +92,17 @@ void mark_cut_text(struct Mark *mark) {
             break;
         }
     }
+}
+
+void mark_cut_text(struct Mark *mark) {
+    /* Set clipboard text. */
+    char *text = mark_get_text(mark);
+    SDL_SetClipboardText(text);    
+
+    /* Delete the text in the selected region. */
+    mark_delete_text(mark);
+
+    free(text);
 }
 
 void mark_draw(struct Mark *mark) {
@@ -121,8 +131,8 @@ void mark_draw(struct Mark *mark) {
             w = mark->end->pos - x;
         }
         SDL_Rect selection = {
-            mark->buf->scroll.x + 3 + x * font_w, 
-            mark->buf->scroll.y + pos-3,
+            mark->buf->x + mark->buf->scroll.x + 3 + x * font_w, 
+            mark->buf->y + mark->buf->scroll.y + pos-3,
             w * font_w, font_h+6
         };
         SDL_RenderFillRect(renderer, &selection);

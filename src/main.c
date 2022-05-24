@@ -7,6 +7,7 @@
 
 #include "globals.h"
 #include "buffer.h"
+#include "minibuffer.h"
 #include "util.h"
 
 int main(int argc, char **argv) {
@@ -35,13 +36,16 @@ int main(int argc, char **argv) {
 
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
+        font = TTF_OpenFont("consola.ttf", 18);
+    TTF_SizeText(font, " ", &font_w, &font_h);
+
     struct Buffer *buf = buffer_allocate(buffer_name);
     if (argc == 2) {
         buffer_load_file(buf, file_name);
     }
+    curbuf = buf;
 
-    font = TTF_OpenFont("consola.ttf", 18);
-    TTF_SizeText(font, " ", &font_w, &font_h);
+    minibuffer_allocate();
 
     printf("Font width: %d, Font height: %d\n", font_w, font_h);
 
@@ -57,13 +61,16 @@ int main(int argc, char **argv) {
                 window_width = event.window.data1;
                 window_height = event.window.data2;
             }
-            buffer_handle_input(buf, &event);
+            buffer_handle_input(curbuf, &event);
+            minibuffer_handle_input(&event);
         }
 
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
         SDL_RenderClear(renderer);
 
         buffer_draw(buf);
+        buffer_draw(minibuf);
+
         SDL_RenderPresent(renderer);
 
         buf->scroll.y = lerp(buf->scroll.y, buf->scroll.target_y, 0.5);
@@ -73,7 +80,6 @@ int main(int argc, char **argv) {
         Uint32 d = end-start;
         timer += d;
         if (timer >= 1000) {
-            printf("FPS: %d\n", fps);
             fps = 0;
             timer = 0;
         } else {
@@ -82,6 +88,7 @@ int main(int argc, char **argv) {
     }
 
     buffer_deallocate(buf);
+    minibuffer_deallocate();
 
     TTF_CloseFont(font);
 
