@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 int sign(int n) {
     if (n < 0) {
@@ -36,4 +37,25 @@ void remove_directory(char *dst, char *src) {
     }
     start++;
     strcpy(dst, src + start);
+}
+
+void isolate_directory(char *dst, char *src) {
+    int start = strlen(src)-1;
+    while (src[start] != '\\' && src[start] != '/') {
+        start--;
+        if (start < 0) {
+            strcpy(dst, src); return;
+        }
+    }
+    start++;
+    
+    strncpy(dst, src, start);
+    puts(dst);
+}
+
+void get_cwd(char *dst) {
+    getcwd(dst, 200);
+    int len = strlen(dst);
+    dst[len] = '\\';
+    dst[len+1] = 0;
 }

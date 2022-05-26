@@ -17,7 +17,7 @@ void mark_deallocate(struct Mark *mark) {
     free(mark);
 }
 
-void mark_set(struct Mark *mark) {
+void mark_set(struct Mark *mark, bool shift_select) {
     if (mark->start) free(mark->start);
     if (mark->end) free(mark->end);
     mark->start = alloc(1, sizeof(struct Point));
@@ -25,6 +25,7 @@ void mark_set(struct Mark *mark) {
     memcpy(mark->start, &mark->buf->point, sizeof(mark->buf->point));
     memcpy(mark->end, &mark->buf->point, sizeof(mark->buf->point));
     mark->active = true;
+    mark->shift_select = shift_select;
 }
 
 void mark_update(struct Mark *mark) {
@@ -41,6 +42,7 @@ void mark_unset(struct Mark *mark) {
     if (mark->end) free(mark->end);
     mark->start = mark->end = NULL;
     mark->active = false;
+    mark->shift_select = false;
 }
 
 char *mark_get_text(struct Mark *mark) {
@@ -111,8 +113,8 @@ void mark_draw(struct Mark *mark) {
     
     if (!mark->start->line || !mark->end->line) return;
 
-    yoff = mark->start->line->y;
     mark_swap_ends_if(mark);
+    yoff = mark->start->line->y;
 
     SDL_SetRenderDrawColor(renderer, 153, 211, 224, 255);
     for (line = mark->start->line; line != mark->end->line->next; line = line->next) {
@@ -130,6 +132,7 @@ void mark_draw(struct Mark *mark) {
         if (line == mark->end->line) {
             w = mark->end->pos - x;
         }
+        x += strlen(line->pre_str);
         SDL_Rect selection = {
             mark->buf->x + mark->buf->scroll.x + 3 + x * font_w, 
             mark->buf->y + mark->buf->scroll.y + pos-3,
@@ -147,5 +150,13 @@ void mark_swap_ends_if(struct Mark *mark) {
         mark->start = mark->end;
         mark->end = temp;
         mark->swapped = !mark->swapped;
+    }
+}
+
+void mark_set_if_shift(struct Mark *mark) {
+    if (is_shift()) {
+        if (!mark->active) mark_set(mark, true);
+    } else if (mark->shift_select) {
+        mark_unset(mark);
     }
 }

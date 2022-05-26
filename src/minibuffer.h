@@ -9,12 +9,20 @@
 
 #include "buffer.h"
 
+enum MinibufferState {
+    STATE_NONE,
+    STATE_LOAD_FILE,
+    STATE_SAVE_FILE_AS,
+    STATE_SWITCH_TO_BUFFER
+};
+
 extern struct Buffer *minibuf;
 
 void minibuffer_allocate();
 void minibuffer_deallocate();
 void minibuffer_handle_input(SDL_Event *event);
-int minibuffer_execute();
+int  minibuffer_execute();
 void minibuffer_return();
+void minibuffer_reset();
 
 #endif /* MINIBUFFER_H_ */

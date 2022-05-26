@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <SDL2/SDL.h>
 
-extern struct Buffer *curbuf, *prevbuf;
+extern struct Buffer *headbuf, *curbuf, *prevbuf;
 
 struct Point {
     struct Line *line; /* The row */
@@ -19,6 +19,8 @@ struct ScrollBar {
 };
 
 struct Buffer {
+    struct Buffer *prev, *next; /* Linked list of all the buffers. */
+
     char name[BUF_NAME_LEN];
     char filename[BUF_NAME_LEN];
 
@@ -33,6 +35,7 @@ struct Buffer {
 
     bool is_singular;        /* Singular means a special buffer where there's only one line, 
                                 and something important happens at RETURN. */
+    int singular_state;      /* The state of the one-lined special buffer (minibuffer.) */
     int (*on_return)();      /* Function that executes once at RETURN if is_singular=true */
 };
 
@@ -43,13 +46,17 @@ void           buffer_handle_input(struct Buffer *buf, SDL_Event *event);
 void           buffer_newline(struct Buffer *buf);
 void           buffer_paste_text(struct Buffer *buf);
 void           buffer_save(struct Buffer *buf);
-void           buffer_load_file(struct Buffer *buf, char *file);
+int            buffer_load_file(struct Buffer *buf, char *file);
 void           buffer_set_edited(struct Buffer *buf, bool edited);
 void           buffer_debug(struct Buffer *buf);
 void           buffer_backspace(struct Buffer *buf);
+void           buffer_update_window_title(struct Buffer *buf);
 
 void buffer_forward_word(struct Buffer *buf);
 void buffer_backward_word(struct Buffer *buf);
+
+void buffer_point_to_beginning(struct Buffer *buf);
+void buffer_point_to_end(struct Buffer *buf);
 
 struct Line {
     struct Line *prev;

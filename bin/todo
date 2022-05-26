@@ -1,14 +1,21 @@
 Features to implement:
 
-x Fix cutting (bug).
-x Pgdown and pgup modify the point position as well.
-x Mode-line.
-x Overwrite selection when pasting.
-x Return at start of the last line is wrong.
-- (Minibuffer) Prompts/popups for:
-  - Open file
-  - Save file as...
-  - Multiple buffers / Switch to buffer.
+x Wrap lines when moving right/left.
+x Multiple buffers.
+x (Minibuffer) Prompts/popups for:
+  x Open file
+  x Save file as...
+  x Switch to buffer.
+x Improve using "*" as an indicator if a buffer is not an actual file yet (as in the case
+  (of *scratch* etc)
+x Shift+[home,end,left,right,up,down]
+x Ctrl+shift+[home,end,left,right,up,down]
+x Ctrl+a
+x Fix selection drawing glitch where it swaps a frame too late.
+x Last character isn't in properly when loading files without a trailing \n.
+x Overwrite selection.
+x Improve forward/backward word behaviour.
+- Center view with ctrl+l
 - Mouse support
-- Ctrl+shift+[home,end,left,right,up,down]
+- Clean up curbuf and prevbuf. Seems sort of irrelevent / there might be a better way.
 - Streamline x_scroll and y_scroll switching- reduce the copy-pasting

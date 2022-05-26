@@ -39,13 +39,14 @@ int main(int argc, char **argv) {
         font = TTF_OpenFont("consola.ttf", 18);
     TTF_SizeText(font, " ", &font_w, &font_h);
 
-    struct Buffer *buf = buffer_allocate(buffer_name);
+    headbuf = buffer_allocate(buffer_name);
     if (argc == 2) {
-        buffer_load_file(buf, file_name);
+        buffer_load_file(headbuf, file_name);
     }
-    curbuf = buf;
+    curbuf = headbuf;
 
     minibuffer_allocate();
+    prevbuf = minibuf;
 
     printf("Font width: %d, Font height: %d\n", font_w, font_h);
 
@@ -68,13 +69,20 @@ int main(int argc, char **argv) {
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
         SDL_RenderClear(renderer);
 
-        buffer_draw(buf);
-        buffer_draw(minibuf);
+        /* Draw the main buffer, and the minibuffer. */
+        if (curbuf != minibuf) {
+            buffer_draw(curbuf);
+            buffer_draw(prevbuf);
+        } else {
+            buffer_draw(prevbuf);
+            buffer_draw(curbuf);
+        }
 
         SDL_RenderPresent(renderer);
 
-        buf->scroll.y = lerp(buf->scroll.y, buf->scroll.target_y, 0.5);
-        buf->scroll.x = lerp(buf->scroll.x, buf->scroll.target_x, 0.5);
+        /* TODO: Put these in a better place (in the handle_input method?) */
+        curbuf->scroll.y = lerp(curbuf->scroll.y, curbuf->scroll.target_y, 0.25);
+        curbuf->scroll.x = lerp(curbuf->scroll.x, curbuf->scroll.target_x, 0.25);
 
         Uint32 end = SDL_GetTicks();
         Uint32 d = end-start;
@@ -87,7 +95,12 @@ int main(int argc, char **argv) {
         }
     }
 
-    buffer_deallocate(buf);
+    struct Buffer *buf = headbuf;
+    while (buf) {
+        struct Buffer *next = buf->next;
+        buffer_deallocate(buf);
+        buf = next;
+    }
     minibuffer_deallocate();
 
     TTF_CloseFont(font);
