@@ -7,6 +7,7 @@
 #include <SDL2/SDL.h>
 
 extern struct Buffer *headbuf, *curbuf, *prevbuf;
+extern unsigned buffer_count; /* Includes the minibuffer. */
 
 struct Point {
     struct Line *line; /* The row */
@@ -33,6 +34,10 @@ struct Buffer {
     struct ScrollBar scroll;
     struct Mark *mark;       /* Area of selection (called the mark) */
 
+    bool is_completing;            /* Did we just hit tab to complete? Used to cycle through completions. */
+    int completion;                /* Amount of cycles into the completion. */
+    char completion_original[256]; /* The original completion to compare against while tab-ing through. */
+
     bool is_singular;        /* Singular means a special buffer where there's only one line, 
                                 and something important happens at RETURN. */
     int singular_state;      /* The state of the one-lined special buffer (minibuffer.) */
@@ -51,6 +56,8 @@ void           buffer_set_edited(struct Buffer *buf, bool edited);
 void           buffer_debug(struct Buffer *buf);
 void           buffer_backspace(struct Buffer *buf);
 void           buffer_update_window_title(struct Buffer *buf);
+void           buffer_reset_completion(struct Buffer *buf);
+void           buffer_kill(struct Buffer *buf);
 
 void buffer_forward_word(struct Buffer *buf);
 void buffer_backward_word(struct Buffer *buf);

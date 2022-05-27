@@ -1,0 +1,14 @@
+		  Some ideas for an undo/redo system
+
+There would be a structure that contains the state of the entire text of a
+buffer. You'd have a list/stack that you add more of these structures on to
+after certain intervals or when you perform certain actions.
+Upon ctrl+z, you just move the stack pointer back one, and set the text in
+the buffer to text from the pointer to the structures.
+
+Or, you could do something like emacs where no undo is truly lost, and the
+stack pointer never moves back or overwrites. That might be cool.
+
+There'd be a limit to how many undos you can do, eg 2000 or something.
+buffer.c in the ame project has 26000 bytes. So the max memory you'd need
+for 2000 undos is 52000000 bytes or 52000 kb, or 52mb. That's fine.

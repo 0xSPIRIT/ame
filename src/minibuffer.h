@@ -9,11 +9,14 @@
 
 #include "buffer.h"
 
+#define MAX_COMPLETION 512
+
 enum MinibufferState {
     STATE_NONE,
     STATE_LOAD_FILE,
     STATE_SAVE_FILE_AS,
-    STATE_SWITCH_TO_BUFFER
+    STATE_SWITCH_TO_BUFFER,
+    STATE_KILL_BUFFER
 };
 
 extern struct Buffer *minibuf;
@@ -24,5 +27,6 @@ void minibuffer_handle_input(SDL_Event *event);
 int  minibuffer_execute();
 void minibuffer_return();
 void minibuffer_reset();
+void minibuffer_attempt_autocomplete(int direction);
 
 #endif /* MINIBUFFER_H_ */

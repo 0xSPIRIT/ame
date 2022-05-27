@@ -13,5 +13,6 @@ void *_alloc(size_t num, size_t size, char *file, int line);
 void remove_directory(char *dst, char *src);
 void isolate_directory(char *dst, char *src);
 void get_cwd(char *dst);
+int string_begins_with(const char *a, const char *b);
 
 #endif /* UTIL_H_ */

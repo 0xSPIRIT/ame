@@ -50,7 +50,6 @@ void isolate_directory(char *dst, char *src) {
     start++;
     
     strncpy(dst, src, start);
-    puts(dst);
 }
 
 void get_cwd(char *dst) {
@@ -58,4 +57,9 @@ void get_cwd(char *dst) {
     int len = strlen(dst);
     dst[len] = '\\';
     dst[len+1] = 0;
+}
+
+int string_begins_with(const char *a, const char *b) {
+   if(strncmp(a, b, strlen(b)) == 0) return 1;
+   return 0;
 }

@@ -15,6 +15,8 @@ struct Buffer *curbuf = NULL;
 struct Buffer *prevbuf = NULL;
 struct Buffer *headbuf = NULL;
 
+unsigned buffer_count = 0; /* Includes the minibuffer. */
+
 struct Buffer *buffer_allocate(char name[BUF_NAME_LEN]) {
     struct Buffer *buf = alloc(1, sizeof(struct Buffer));
     strcpy(buf->name, name);
@@ -25,6 +27,8 @@ struct Buffer *buffer_allocate(char name[BUF_NAME_LEN]) {
 
     buf->point.line = buf->start_line;
     buf->point.pos = 0;
+
+    buffer_count++;
 
     return buf;
 }
@@ -107,6 +111,7 @@ static void buffer_limit_point(struct Buffer *buf) {
 void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
     if (event->type == SDL_TEXTINPUT) {
         if (*(event->text.text) == ' ' && is_ctrl()) goto keydown;
+
         if (buf->mark->active) {
             mark_delete_text(buf->mark);
             mark_unset(buf->mark);
@@ -139,7 +144,8 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                 break;
             }
             case SDLK_TAB: {
-                if (is_ctrl() && curbuf != minibuf) {
+                if (curbuf == minibuf) break;
+                if (is_ctrl()) {
                     if (is_shift()) {
                         if (curbuf->next) 
                             curbuf = curbuf->next;
@@ -176,6 +182,13 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                     buffer_point_to_beginning(buf);
                     mark_set(buf->mark, false);
                     buffer_point_to_end(buf);
+                }
+                break;
+            }
+
+            case SDLK_l: {
+                if (is_ctrl()) {
+                    buf->scroll.target_y = -buf->point.line->y * (font_h + 3) + window_height/2 - font_h*2;
                 }
                 break;
             }
@@ -583,6 +596,33 @@ void buffer_update_window_title(struct Buffer *buf) {
     SDL_SetWindowTitle(window, title);
 }
 
+void buffer_reset_completion(struct Buffer *buf) {
+    buf->is_completing = false;
+    buf->completion = 0;
+    memset(buf->completion_original, 0, 256);
+}
+
+void buffer_kill(struct Buffer *buf) {
+    if (!buf->prev && !buf->next) return;
+
+    if (curbuf == buf) {
+        if (buf->next) curbuf = buf->next;
+        if (buf->prev) curbuf = buf->prev;
+    }
+    if (prevbuf == buf) {
+        if (buf->next) prevbuf = buf->next;
+        if (buf->prev) prevbuf = buf->prev;
+    }
+
+    if (buf->prev) {
+        buf->prev->next = buf->next;
+    }
+    if (buf->next) {
+        buf->next->prev = buf->prev;
+    }
+    buffer_deallocate(buf);
+}
+
 void buffer_debug(struct Buffer *buf) {
     struct Line *l;
     int i = 0;
@@ -593,7 +633,7 @@ void buffer_debug(struct Buffer *buf) {
     }
 }
 
-static const char breakchars[] = " (){}[];\'\":/?.<>=-_+";
+static const char breakchars[] = " (){}[];\\\'\":/?,.<>=-_+";
 
 static bool is_break(char c) {
     unsigned i;

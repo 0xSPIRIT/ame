@@ -5,6 +5,8 @@
 #include "globals.h"
 #include "mark.h"
 
+#include <dirent.h>
+
 struct Buffer *minibuf;
 
 void minibuffer_allocate() {
@@ -20,8 +22,21 @@ void minibuffer_deallocate() {
 }
 
 void minibuffer_handle_input(SDL_Event *event) {
+    if (event->type == SDL_TEXTINPUT) {
+        buffer_reset_completion(minibuf);
+    }
     if (event->type == SDL_KEYDOWN) {
+        if (event->key.keysym.sym != SDLK_TAB && !is_shift() && !is_ctrl()) {
+            buffer_reset_completion(minibuf);
+        }
+
         switch (event->key.keysym.sym) {
+            case SDLK_TAB: {
+                if (curbuf == minibuf) {
+                    minibuffer_attempt_autocomplete(is_shift() ? -1 : 1);
+                }
+                break;
+            }
             case SDLK_o: {
                 if (is_ctrl() && !curbuf->is_singular) {
                     prevbuf = curbuf;
@@ -64,14 +79,18 @@ void minibuffer_handle_input(SDL_Event *event) {
                     curbuf = minibuf;
                     minibuf->singular_state = STATE_SWITCH_TO_BUFFER;
                     strcpy(minibuf->start_line->pre_str, "Switch to buffer: ");
-                    /* Automatically put next buffer. */
-                    char *name;
-                    if (prevbuf->next) 
-                        name = prevbuf->next->name;
-                    else
-                        name = headbuf->name;
-                    line_type_string(minibuf->start_line, 0, name);
-                    minibuf->point.pos = minibuf->start_line->len;
+                }
+                break;
+            }
+            case SDLK_w: {
+                if (curbuf->edited) {
+                    prevbuf = curbuf;
+                    curbuf = minibuf;
+                    minibuf->singular_state = STATE_KILL_BUFFER;
+                    strcpy(minibuf->start_line->pre_str, "Discard changes and kill buffer? (y/n): ");
+                } else {
+                    buffer_kill(curbuf);
+                    buffer_update_window_title(curbuf);
                 }
                 break;
             }
@@ -96,6 +115,16 @@ int minibuffer_execute() {
             /* Create a new buffer, load file, then add it to the linked list of buffers. */
             struct Buffer *buf;
             char buffer_name[256];
+
+            /* Check if file already exists in opened buffers. If so, switch to it. */
+            struct Buffer *a;
+            for (a = headbuf; a; a = a->next) {
+                if (0==strcmp(a->filename, command)) {
+                    prevbuf = a;
+                    buffer_update_window_title(prevbuf);
+                    goto end;
+                }
+            }
 
             remove_directory(buffer_name, command);
             buf = buffer_allocate(buffer_name);
@@ -138,12 +167,25 @@ int minibuffer_execute() {
             
             break;
         }
+        case STATE_KILL_BUFFER: {
+            if (*command == 'y') {
+                buffer_kill(prevbuf);
+                buffer_update_window_title(prevbuf);
+            } else if (*command == 'n') {
+            } else {
+                strcpy(minibuf->start_line->pre_str, "Discard changes and kill buffer? (y/n) [Must be y or n]: ");
+                return 0;
+            }
+            break;
+        }
     }
+ end:
     minibuffer_return();
     return 0;
 }
 
 void minibuffer_return() {
+    buffer_reset_completion(minibuf);
     if (curbuf == minibuf) {
         minibuffer_reset();
         curbuf = prevbuf;
@@ -156,4 +198,125 @@ void minibuffer_reset() {
     minibuf->start_line->len = 0;
     minibuf->point.pos = 0;
     memset(minibuf->start_line->pre_str, 0, 255);
+}
+
+void minibuffer_attempt_autocomplete(int direction) {
+    char *str = minibuf->start_line->str;
+
+    printf("%d\n", direction);
+
+    char possibilities[MAX_COMPLETION][256];
+    int i = 0;
+
+    bool is_initial = !minibuf->is_completing; /* Is this the intial completion? */
+
+    switch (minibuf->singular_state) {
+        case STATE_LOAD_FILE: case STATE_SAVE_FILE_AS: {
+            char dirname[256];
+            char filename[256];
+            int filecount = 0;
+            DIR *d;
+            struct dirent *dir;
+
+            isolate_directory(dirname, str);
+
+            if (minibuf->is_completing) {
+                strcpy(filename, minibuf->completion_original);
+            } else {
+                minibuf->is_completing = true;
+                remove_directory(filename, str);
+                strcpy(minibuf->completion_original, filename);
+            }
+
+            d = opendir(dirname);
+            if (d) {
+                while ((dir = readdir(d)) != NULL) {
+                    filecount++;
+                }
+                closedir(d);
+            } else {
+                return;
+            }
+
+            d = opendir(dirname);
+            if (d) {
+                while ((dir = readdir(d)) != NULL) {
+                    if (strlen(filename) == 0) {
+                        strcpy(possibilities[i++], dir->d_name);
+                        continue;
+                    }
+                    if (string_begins_with(dir->d_name, filename)) {
+                        strcpy(possibilities[i++], dir->d_name);
+                    }
+                }
+                closedir(d);
+            }
+
+            if (i == 0) return;
+
+            /* If it's an initial, we want to see the first element no matter direction. We don't want to skip the first one*/
+            if (!is_initial) {
+                minibuf->completion += direction;
+                if (minibuf->completion >= i) {
+                    minibuf->completion = 0;
+                }
+                if (minibuf->completion < 0) {
+                    minibuf->completion = i-1;
+                }
+            }
+
+            memset(minibuf->start_line->str, 0, minibuf->start_line->cap);
+            minibuf->start_line->len = 0;
+            char new[256] = {0};
+            strcat(new, dirname);
+            strcat(new, possibilities[minibuf->completion]);
+            line_type_string(minibuf->start_line, 0, new);
+            minibuf->point.pos = minibuf->start_line->len;
+
+            break;
+        }
+        case STATE_SWITCH_TO_BUFFER: {
+            /* If there is one option, then choose that. Otherwise print the possibilities. */
+            struct Buffer *buf;
+            int i = 0;
+
+            if (minibuf->is_completing) {
+                strcpy(str, minibuf->completion_original);
+            } else {
+                minibuf->is_completing = true;
+                strcpy(minibuf->completion_original, str);
+            }
+
+            for (buf = headbuf; buf; buf = buf->next) {
+                if (buf == prevbuf) continue; /* Obviously don't switch to the currently opened buffer. */
+                if (strlen(str) == 0) {
+                    strcpy(possibilities[i++], buf->name);
+                    continue;
+                }
+                if (string_begins_with(buf->name, str)) {
+                    strcpy(possibilities[i++], buf->name);
+                }
+            }
+
+            if (i == 0) return;
+
+            /* If it's an initial, we want to see the first element no matter direction. We don't want to skip the first one*/
+            if (!is_initial) {
+                minibuf->completion += direction;
+                if (minibuf->completion >= i) {
+                    minibuf->completion = 0;
+                }
+                if (minibuf->completion < 0) {
+                    minibuf->completion = i-1;
+                }
+            }
+
+            memset(minibuf->start_line->str, 0, minibuf->start_line->cap);
+            minibuf->start_line->len = 0;
+            line_type_string(minibuf->start_line, 0, possibilities[minibuf->completion--]);
+            minibuf->point.pos = minibuf->start_line->len;
+            
+            break;
+        }
+    }
 }

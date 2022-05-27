@@ -1,21 +1,10 @@
 Features to implement:
 
-x Wrap lines when moving right/left.
-x Multiple buffers.
-x (Minibuffer) Prompts/popups for:
-  x Open file
-  x Save file as...
-  x Switch to buffer.
-x Improve using "*" as an indicator if a buffer is not an actual file yet (as in the case
-  (of *scratch* etc)
-x Shift+[home,end,left,right,up,down]
-x Ctrl+shift+[home,end,left,right,up,down]
-x Ctrl+a
-x Fix selection drawing glitch where it swaps a frame too late.
-x Last character isn't in properly when loading files without a trailing \n.
-x Overwrite selection.
-x Improve forward/backward word behaviour.
-- Center view with ctrl+l
+x If you try to open a file that already matches an existing filename, switch to
+  the buffer instead.
+x Autocomplete switch to buffer, open file, and save as contexts.
+x Shift+tab with autocomplete.
+x Center view with ctrl+l
+x Killing buffers & prompt.
 - Mouse support
-- Clean up curbuf and prevbuf. Seems sort of irrelevent / there might be a better way.
 - Streamline x_scroll and y_scroll switching- reduce the copy-pasting
