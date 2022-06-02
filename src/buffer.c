@@ -10,6 +10,7 @@
 #include "mark.h"
 #include "modeline.h"
 #include "minibuffer.h"
+#include "panel.h"
 
 struct Buffer *curbuf = NULL;
 struct Buffer *prevbuf = NULL;
@@ -76,10 +77,14 @@ void buffer_draw(struct Buffer *buf) {
         int pos = yoff*3 + yoff*font_h;
         if (pos > -font_h-buf->scroll.y && pos < window_height-buf->scroll.y) { /* Culling */
             if (line == buf->point.line && buf == curbuf && buf != minibuf) { /* Draw a little highlight on current line */
+                int w;
+                if ((panel_left && !panel_right) || (panel_right && !panel_left)) {
+                    w = window_width;
+                } else  w = window_width/2;
                 SDL_Rect r = { 
                     buf->x + buf->scroll.x + 3 + buf->scroll.x, 
                     buf->y + font_h*yoff + 3*yoff + buf->scroll.y, 
-                    window_width-6, 
+                    w-6, 
                     font_h
                 };
                 const int alpha = 255-240;
@@ -95,9 +100,6 @@ void buffer_draw(struct Buffer *buf) {
 
     if (buf == curbuf)
         buffer_draw_point(buf);
-    
-    if (!buf->is_singular)
-        buffer_modeline_draw(buf);
 }
 
 static void buffer_limit_point(struct Buffer *buf) {
@@ -155,7 +157,6 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                             curbuf = curbuf->prev;
                         else while (curbuf->next) curbuf = curbuf->next;
                     }
-                    buffer_update_window_title(curbuf);
                 } else {
                     line_type_string(buf->point.line, buf->point.pos, "    ");
                     buf->point.pos += 4;
@@ -173,6 +174,22 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                 if (is_ctrl()) {
                     mark_unset(buf->mark);
                     printf("Mark deactivated!\n");
+                }
+                break;
+            }
+
+            case SDLK_u: {
+                if (is_ctrl()) {
+                    panel_swap_focus();
+                }
+                break;
+            }
+            case SDLK_e: {
+                if (is_ctrl()) {
+                    if (panel_left && panel_right) {
+                        if (curbuf == panel_left) panel_left = NULL;
+                        else if (curbuf == panel_right) panel_right = NULL;
+                    }
                 }
                 break;
             }
@@ -210,7 +227,7 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                 } else {
                     if (buf->point.pos < buf->point.line->len) {
                         line_delete_char(buf->point.line, buf->point.pos);
-                    } else {
+                    } else if (buf->point.line->next) {
                         /* Move content of next line to current line, then delete next line. */
                         line_type_string(buf->point.line,
                                          buf->point.pos,
@@ -303,7 +320,7 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
 
                 if (is_ctrl()) {
                     do {
-                        if (!buf->point.line->next) break;
+                        if (!buf->point.line->next) { buf->point.pos = buf->point.line->len; break; }
                         buf->point.line = buf->point.line->next;
                         buf->point.pos = 0;
                     } while (!line_is_empty(buf->point.line));
@@ -586,16 +603,6 @@ void buffer_set_edited(struct Buffer *buf, bool edited) {
     }
 }
 
-void buffer_update_window_title(struct Buffer *buf) {
-    char title[256] = {0};
-    if (buf->edited) {
-        strcat(title, (char[2]){'*', 0});
-    }
-    strcat(title, buf->name);
-    strcat(title, " - ame");
-    SDL_SetWindowTitle(window, title);
-}
-
 void buffer_reset_completion(struct Buffer *buf) {
     buf->is_completing = false;
     buf->completion = 0;
@@ -621,6 +628,15 @@ void buffer_kill(struct Buffer *buf) {
         buf->next->prev = buf->prev;
     }
     buffer_deallocate(buf);
+}
+
+bool buffer_is_scrolling(struct Buffer *buf) {
+    const float EPSILON = 0.001f;
+    float dx = fabs(buf->scroll.x - buf->scroll.target_x);
+    float dy = fabs(buf->scroll.y - buf->scroll.target_y);
+    if (dx < EPSILON) buf->scroll.x = buf->scroll.target_x;
+    if (dy < EPSILON) buf->scroll.y = buf->scroll.target_y;
+    return dx > EPSILON || dy > EPSILON;
 }
 
 void buffer_debug(struct Buffer *buf) {

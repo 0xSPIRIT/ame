@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <math.h>
 
 int sign(int n) {
     if (n < 0) {
@@ -16,6 +17,10 @@ int sign(int n) {
 
 float lerp(float a, float b, float n) {
     return a + n*(b-a);
+}
+
+float damp(float a, float b, float smooth, float dt) {
+    return lerp(a, b, 1-pow(smooth, dt/1000.));
 }
 
 void *_alloc(size_t num, size_t size, char *file, int line) {

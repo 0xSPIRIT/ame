@@ -9,6 +9,7 @@
 
 #include "buffer.h"
 
+void modeline_draw_rect();
 void buffer_modeline_draw(struct Buffer *buf);
 
 #endif /* MODELINE_H_ */

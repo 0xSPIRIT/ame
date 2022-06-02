@@ -1,10 +1,20 @@
 Features to implement:
 
-x If you try to open a file that already matches an existing filename, switch to
-  the buffer instead.
-x Autocomplete switch to buffer, open file, and save as contexts.
-x Shift+tab with autocomplete.
-x Center view with ctrl+l
-x Killing buffers & prompt.
+x Bug with DEL on last character of a buffer.
+x Remove 60fps loop, and remove all associated issues.
+x Just get rid of having the buffer name in the title TBH.
+x Bug with minibuffer and different sized windows.
+x Creating new files doesn't work properly.
+x Ctrl+down goes to the end of the line if it reaches last line.
+x Panels
+   - Make horizontal scrolling work.
+x Alt+e Alt+a Alt+h
+x Switch to buffer doesn't work with multiple buffers.
+- Bug with autocomplete with no string length in switch to buffer.
+- Improve open-file autocomplete;
+- Undefined behaviour at alt+f4... something to do with making new files??
+- I-search [ctrl+f]
+- Performance with maximized window.
+- Undo/Redo
 - Mouse support
 - Streamline x_scroll and y_scroll switching- reduce the copy-pasting

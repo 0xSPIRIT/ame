@@ -9,6 +9,7 @@
 #include "buffer.h"
 #include "minibuffer.h"
 #include "util.h"
+#include "panel.h"
 
 int main(int argc, char **argv) {
     bool running = true;
@@ -24,19 +25,17 @@ int main(int argc, char **argv) {
     SDL_Init(SDL_INIT_VIDEO);
     TTF_Init();
 
-    char title[512];
-    sprintf(title, "%s - ame", buffer_name);
-    window = SDL_CreateWindow(title,
+    window = SDL_CreateWindow("ame",
                               SDL_WINDOWPOS_UNDEFINED,
                               SDL_WINDOWPOS_UNDEFINED,
                               window_width,
                               window_height,
                               SDL_WINDOW_RESIZABLE);
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
+    renderer = SDL_CreateRenderer(window, -1, 0);
 
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-
-        font = TTF_OpenFont("consola.ttf", 18);
+    
+    font = TTF_OpenFont("consola.ttf", 18);
     TTF_SizeText(font, " ", &font_w, &font_h);
 
     headbuf = buffer_allocate(buffer_name);
@@ -48,51 +47,53 @@ int main(int argc, char **argv) {
     minibuffer_allocate();
     prevbuf = minibuf;
 
+    panel_left = curbuf;
+    panel_right = curbuf;
+
     printf("Font width: %d, Font height: %d\n", font_w, font_h);
 
     Uint32 start = 0;
-    Uint32 timer = 0;
-    int fps = 0;
+
     while (running) {
-        start = SDL_GetTicks();
         SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) running = false;
+        start = SDL_GetPerformanceCounter();
+
+        int is_event = SDL_PollEvent(&event);
+        int did_do_event = is_event;
+        int is_scroll = buffer_is_scrolling(curbuf);
+
+        while (is_event) {
+            if (event.type == SDL_QUIT) {
+                running = false;
+                goto end_of_running_loop;
+            }
             if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_RESIZED) {
                 window_width = event.window.data1;
                 window_height = event.window.data2;
             }
+
             buffer_handle_input(curbuf, &event);
             minibuffer_handle_input(&event);
+
+            is_event = SDL_PollEvent(&event);
         }
+        if (did_do_event || is_scroll) {
+            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+            SDL_RenderClear(renderer);
 
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-        SDL_RenderClear(renderer);
+            buffers_draw();    
 
-        /* Draw the main buffer, and the minibuffer. */
-        if (curbuf != minibuf) {
-            buffer_draw(curbuf);
-            buffer_draw(prevbuf);
-        } else {
-            buffer_draw(prevbuf);
-            buffer_draw(curbuf);
+            SDL_RenderPresent(renderer);
+
+            /* dt = ~1 ms. We want to scale the speed of the lerp to the frametime. */
+            
+            curbuf->scroll.y = damp(curbuf->scroll.y, curbuf->scroll.target_y, 0.0001, dt);
+            curbuf->scroll.x = damp(curbuf->scroll.x, curbuf->scroll.target_x, 0.0001, dt);
+
+            Uint32 end = SDL_GetPerformanceCounter();
+            dt = (double)(1000*(end-start)) / SDL_GetPerformanceFrequency();
         }
-
-        SDL_RenderPresent(renderer);
-
-        /* TODO: Put these in a better place (in the handle_input method?) */
-        curbuf->scroll.y = lerp(curbuf->scroll.y, curbuf->scroll.target_y, 0.25);
-        curbuf->scroll.x = lerp(curbuf->scroll.x, curbuf->scroll.target_x, 0.25);
-
-        Uint32 end = SDL_GetTicks();
-        Uint32 d = end-start;
-        timer += d;
-        if (timer >= 1000) {
-            fps = 0;
-            timer = 0;
-        } else {
-            fps++;
-        }
+  end_of_running_loop:;
     }
 
     struct Buffer *buf = headbuf;

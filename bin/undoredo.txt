@@ -1,4 +1,4 @@
-		  Some ideas for an undo/redo system
+                Some ideas for an undo/redo system
 
 There would be a structure that contains the state of the entire text of a
 buffer. You'd have a list/stack that you add more of these structures on to

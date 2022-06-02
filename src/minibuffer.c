@@ -4,6 +4,7 @@
 #include "util.h"
 #include "globals.h"
 #include "mark.h"
+#include "panel.h"
 
 #include <dirent.h>
 
@@ -22,6 +23,8 @@ void minibuffer_deallocate() {
 }
 
 void minibuffer_handle_input(SDL_Event *event) {
+    minibuf->y = window_height - font_h;
+
     if (event->type == SDL_TEXTINPUT) {
         buffer_reset_completion(minibuf);
     }
@@ -83,14 +86,15 @@ void minibuffer_handle_input(SDL_Event *event) {
                 break;
             }
             case SDLK_w: {
-                if (curbuf->edited) {
-                    prevbuf = curbuf;
-                    curbuf = minibuf;
-                    minibuf->singular_state = STATE_KILL_BUFFER;
-                    strcpy(minibuf->start_line->pre_str, "Discard changes and kill buffer? (y/n): ");
-                } else {
-                    buffer_kill(curbuf);
-                    buffer_update_window_title(curbuf);
+                if (is_ctrl()) {
+                    if (curbuf->edited) {
+                        prevbuf = curbuf;
+                        curbuf = minibuf;
+                        minibuf->singular_state = STATE_KILL_BUFFER;
+                        strcpy(minibuf->start_line->pre_str, "Discard changes and kill buffer? (y/n): ");
+                    } else {
+                        buffer_kill(curbuf);
+                    }
                 }
                 break;
             }
@@ -100,6 +104,26 @@ void minibuffer_handle_input(SDL_Event *event) {
                     minibuffer_return();
                 }
                 break;
+            }
+
+            case SDLK_a: {
+                if (is_alt()) {
+                    if (curbuf == panel_left) panel_right = NULL;
+                    if (curbuf == panel_right) panel_left = NULL;
+                } break;
+            }
+            case SDLK_e: {
+                if (is_alt() && panel_left && panel_right) {
+                    if (curbuf == panel_left) panel_left = NULL;
+                    if (curbuf == panel_right) panel_right = NULL;
+                } break;
+            }
+            case SDLK_h: {
+                if (is_alt() && (!panel_left || !panel_right)) {
+                    printf("Occured!\n");
+                    if (curbuf == panel_left) panel_right = curbuf;
+                    else if (curbuf == panel_right) panel_left = curbuf;
+                } break;
             }
         }
     }
@@ -113,6 +137,8 @@ int minibuffer_execute() {
     switch (minibuf->singular_state) {
         case STATE_LOAD_FILE: {
             /* Create a new buffer, load file, then add it to the linked list of buffers. */
+            if (!strchr(command, '\\') && !strchr(command, '/')) return 0;
+
             struct Buffer *buf;
             char buffer_name[256];
 
@@ -121,19 +147,18 @@ int minibuffer_execute() {
             for (a = headbuf; a; a = a->next) {
                 if (0==strcmp(a->filename, command)) {
                     prevbuf = a;
-                    buffer_update_window_title(prevbuf);
                     goto end;
                 }
             }
 
             remove_directory(buffer_name, command);
             buf = buffer_allocate(buffer_name);
+            if (panel_left == prevbuf) panel_left = buf;
+            else if (panel_right == prevbuf) panel_right = buf;
 
             int directory_exists = !buffer_load_file(buf, command);
             if (!directory_exists) {
-                char cwd[256] = {0};
-                get_cwd(cwd);
-                sprintf(buf->filename, "%s%s", cwd, command);
+                strcpy(buf->filename, command);
                 printf("New file name: %s\n", buf->filename);
             }
 
@@ -141,7 +166,6 @@ int minibuffer_execute() {
             prevbuf->next->prev = prevbuf;
             prevbuf = prevbuf->next;
 
-            buffer_update_window_title(prevbuf);
             break;
         }
         case STATE_SAVE_FILE_AS: {
@@ -150,27 +174,28 @@ int minibuffer_execute() {
             remove_directory(prevbuf->name, command);
 
             buffer_save(prevbuf);
-
-            buffer_update_window_title(prevbuf);
             break;
         }
         case STATE_SWITCH_TO_BUFFER: {
             struct Buffer *buf = headbuf;
             while (buf) {
                 if (0==strcmp(buf->name, command)) {
+                    if (prevbuf == panel_left) {
+                        panel_left = buf;
+                    } else if (prevbuf == panel_right) {
+                        panel_right = buf;
+                    }
                     prevbuf = buf; /* When minibuffer_return() is called, curbuf will be set to prevbuf. */
                     break;
                 }
                 buf = buf->next;
             }
             /* If we reach here then there is no matching buffer. Create a new buffer. */
-            
             break;
         }
         case STATE_KILL_BUFFER: {
             if (*command == 'y') {
                 buffer_kill(prevbuf);
-                buffer_update_window_title(prevbuf);
             } else if (*command == 'n') {
             } else {
                 strcpy(minibuf->start_line->pre_str, "Discard changes and kill buffer? (y/n) [Must be y or n]: ");
@@ -202,8 +227,6 @@ void minibuffer_reset() {
 
 void minibuffer_attempt_autocomplete(int direction) {
     char *str = minibuf->start_line->str;
-
-    printf("%d\n", direction);
 
     char possibilities[MAX_COMPLETION][256];
     int i = 0;
@@ -286,6 +309,8 @@ void minibuffer_attempt_autocomplete(int direction) {
                 minibuf->is_completing = true;
                 strcpy(minibuf->completion_original, str);
             }
+
+            printf("%d\n", minibuf->completion);
 
             for (buf = headbuf; buf; buf = buf->next) {
                 if (buf == prevbuf) continue; /* Obviously don't switch to the currently opened buffer. */

@@ -55,9 +55,9 @@ int            buffer_load_file(struct Buffer *buf, char *file);
 void           buffer_set_edited(struct Buffer *buf, bool edited);
 void           buffer_debug(struct Buffer *buf);
 void           buffer_backspace(struct Buffer *buf);
-void           buffer_update_window_title(struct Buffer *buf);
 void           buffer_reset_completion(struct Buffer *buf);
 void           buffer_kill(struct Buffer *buf);
+bool           buffer_is_scrolling(struct Buffer *buf);
 
 void buffer_forward_word(struct Buffer *buf);
 void buffer_backward_word(struct Buffer *buf);
