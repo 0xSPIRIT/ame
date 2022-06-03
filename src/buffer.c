@@ -11,6 +11,7 @@
 #include "modeline.h"
 #include "minibuffer.h"
 #include "panel.h"
+#include "isearch.h"
 
 struct Buffer *curbuf = NULL;
 struct Buffer *prevbuf = NULL;
@@ -23,6 +24,8 @@ struct Buffer *buffer_allocate(char name[BUF_NAME_LEN]) {
     strcpy(buf->name, name);
     buf->start_line = line_allocate(buf);
     buf->line_count = 1;
+
+    buf->search = alloc(1, sizeof(struct Isearch));
 
     buf->mark = mark_allocate(buf);
 
@@ -43,6 +46,8 @@ void buffer_deallocate(struct Buffer *buf) {
         next = line->next;
         line_deallocate(line);
     }
+
+    free(buf->search);
     free(buf);
 }
 
@@ -89,6 +94,10 @@ void buffer_draw(struct Buffer *buf) {
                 SDL_RenderFillRect(renderer, &r);
                 SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
             }
+            highlight_update(&line->hl);
+            if (line->hl.active) {
+                highlight_draw(line->hl, 3 + buf->scroll.x, buf->y + font_h*yoff + 3*yoff + buf->scroll.y);
+            }
             line_draw(line, yoff, buf->scroll.x, buf->scroll.y);
         }
         amt++;
@@ -109,6 +118,11 @@ static void buffer_limit_point(struct Buffer *buf) {
 
 void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
     if (event->type == SDL_TEXTINPUT) {
+        if (buf->destructive) { 
+            buf->destructive = false;
+            line_delete_chars_range(buf->start_line, 0, buf->start_line->len);
+            buf->point.pos = 0;
+        }
         if (*(event->text.text) == ' ' && is_ctrl()) goto keydown;
 
         if (buf->mark->active) {
@@ -135,6 +149,10 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
             }
             case SDLK_RETURN: {
   return_key:
+                if (buf->mark->active) {
+                    mark_delete_text(buf->mark);
+                    mark_unset(buf->mark);
+                }
                 if (!buf->is_singular) {
                     buffer_newline(buf);
                 } else {
@@ -149,6 +167,7 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
             case SDLK_TAB: {
                 if (curbuf == minibuf) break;
                 if (is_ctrl()) {
+                    struct Buffer *bef = curbuf;
                     if (is_shift()) {
                         if (curbuf->next) 
                             curbuf = curbuf->next;
@@ -158,6 +177,9 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                             curbuf = curbuf->prev;
                         else while (curbuf->next) curbuf = curbuf->next;
                     }
+
+                    if (panel_left == bef) panel_left = curbuf;
+                    if (panel_right == bef) panel_right = curbuf;
                 } else {
                     line_type_string(buf->point.line, buf->point.pos, "    ");
                     buf->point.pos += 4;
@@ -174,7 +196,6 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
             case SDLK_g: {
                 if (is_ctrl()) {
                     mark_unset(buf->mark);
-                    printf("Mark deactivated!\n");
                 }
                 break;
             }
@@ -343,9 +364,10 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                         if (is_ctrl()) {
                             buffer_point_to_beginning(buf);
                         } else {
-                            int i = 0;
+                            /*int i = 0;
                             while (isspace(buf->point.line->str[i++]));
-                            buf->point.pos = i-1;
+                            buf->point.pos = i-1;*/
+                            buf->point.pos = 0;
                             buf->scroll.target_x = 0;
                         }
                         break;
@@ -649,6 +671,12 @@ void buffer_debug(struct Buffer *buf) {
     }
 }
 
+void buffer_goto_line(struct Buffer *buf, int line) {
+    for (buf->point.line = buf->start_line; buf->point.line; buf->point.line = buf->point.line->next) {
+        if (buf->point.line->y == line) break;
+    }
+}
+
 static const char breakchars[] = " (){}[];\\\'\":/?,.<>=-_+";
 
 static bool is_break(char c) {
@@ -793,7 +821,7 @@ void line_draw(struct Line *line, int yoff, int scroll_x, int scroll_y) {
     int pre_width = 0;
 
     if (strlen(line->pre_str) > 0) {
-        SDL_Surface *pre_surf = TTF_RenderText_Blended(font, line->pre_str, (SDL_Color){255, 0, 0, 255});
+        SDL_Surface *pre_surf = TTF_RenderText_Blended(font, line->pre_str, (SDL_Color){0, 0, 255, 255});
         SDL_Texture *pre_texture = SDL_CreateTextureFromSurface(renderer, pre_surf);
 
         pre_width = pre_surf->w;
@@ -810,7 +838,11 @@ void line_draw(struct Line *line, int yoff, int scroll_x, int scroll_y) {
     }
 
     if (line->len > 0) {
-        SDL_Surface *surf = TTF_RenderText_Blended(font, line->str, (SDL_Color){0, 0, 0, 255});
+        SDL_Color col = (SDL_Color){0, 0, 0, 255};
+        if (line->buf->destructive) {
+            col.a = 127;
+        }
+        SDL_Surface *surf = TTF_RenderText_Blended(font, line->str, col);
         SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surf);
 
         const SDL_Rect dst = (SDL_Rect){

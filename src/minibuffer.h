@@ -16,7 +16,9 @@ enum MinibufferState {
     STATE_LOAD_FILE,
     STATE_SAVE_FILE_AS,
     STATE_SWITCH_TO_BUFFER,
-    STATE_KILL_BUFFER
+    STATE_KILL_BUFFER,
+    STATE_ISEARCH,
+    STATE_GOTO_LINE
 };
 
 extern struct Buffer *minibuf;

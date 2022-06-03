@@ -5,6 +5,7 @@
 #include "globals.h"
 #include "mark.h"
 #include "panel.h"
+#include "isearch.h"
 
 #include <dirent.h>
 
@@ -55,6 +56,25 @@ void minibuffer_handle_input(SDL_Event *event) {
                 }
                 break;
             }
+            case SDLK_f: {
+                if (is_ctrl()) {
+                    if (!curbuf->is_singular) {
+                        prevbuf = curbuf;
+                        curbuf = minibuf;
+                        minibuf->singular_state = STATE_ISEARCH;
+                        strcpy(minibuf->start_line->pre_str, "Isearch: ");
+                        if (strlen(prevbuf->search->str)) {
+                            line_type_string(minibuf->start_line, 0, prevbuf->search->str);
+                            minibuf->destructive = true;
+                        }
+                        minibuf->point.pos = minibuf->start_line->len;
+                    } else {
+                        buffer_isearch_goto_matching(prevbuf, minibuf->start_line->str);
+                        minibuffer_return();
+                    }
+                }
+                break;
+            }
             case SDLK_s: {
                 if (is_ctrl() && !is_shift() && !curbuf->is_singular) {
                     if (strlen(curbuf->filename) > 0) {
@@ -95,14 +115,21 @@ void minibuffer_handle_input(SDL_Event *event) {
                         strcpy(minibuf->start_line->pre_str, "Discard changes and kill buffer? (y/n): ");
                     } else {
                         buffer_kill(curbuf);
+                        if (panel_left == curbuf) panel_left = curbuf;
+                        if (panel_right == curbuf) panel_right = curbuf;
                     }
                 }
                 break;
             }
-            case SDLK_g: case SDLK_ESCAPE: {
+            case SDLK_g: {
                 if (is_ctrl()) {
                     mark_unset(minibuf->mark);
                     minibuffer_return();
+                } else if (is_alt()) {
+                    prevbuf = curbuf;
+                    curbuf = minibuf;
+                    minibuf->singular_state = STATE_GOTO_LINE;
+                    strcpy(minibuf->start_line->pre_str, "Go to line: ");
                 }
                 break;
             }
@@ -196,12 +223,48 @@ int minibuffer_execute() {
         }
         case STATE_KILL_BUFFER: {
             if (*command == 'y') {
+                if (panel_left == prevbuf) {
+                    if (prevbuf->next) {
+                        panel_left = prevbuf->next;
+                    } else {
+                        struct Buffer *buf = prevbuf;
+                        while (buf->prev) {
+                            buf = buf->prev;
+                            panel_left = buf;
+                        }
+               	    }
+                } 
+                if (panel_right == prevbuf) {
+                    if (prevbuf->next) {
+                        panel_right = prevbuf->next;
+                    } else {
+                        struct Buffer *buf = prevbuf;
+                        while (buf->prev) {
+                            buf = buf->prev;
+                            panel_left = buf;
+                        }
+               	    }
+                }
                 buffer_kill(prevbuf);
             } else if (*command == 'n') {
             } else {
                 strcpy(minibuf->start_line->pre_str, "Discard changes and kill buffer? (y/n) [Must be y or n]: ");
                 return 0;
             }
+            break;
+        }
+        case STATE_GOTO_LINE: {
+            int line = atoi(curbuf->start_line->str) - 1;
+            if (line < 0) line = 0;
+            buffer_goto_line(prevbuf, line);
+            int pos = prevbuf->point.line->y*3 + prevbuf->point.line->y*font_h;
+            if (pos < -font_h-prevbuf->scroll.y || pos > window_height-prevbuf->scroll.y-font_h*2) {
+                prevbuf->scroll.target_y = -font_h+(window_height-font_h*2)-(3*prevbuf->point.line->y + prevbuf->point.line->y * font_h);
+            }
+            break;
+        }
+        case STATE_ISEARCH: {
+            buffer_isearch_goto_matching(prevbuf, minibuf->start_line->str);
             break;
         }
     }

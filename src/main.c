@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
 
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     
-    font = TTF_OpenFont("consola.ttf", 18);
+    font = TTF_OpenFont("consola.ttf", 17);
     TTF_SizeText(font, " ", &font_w, &font_h);
 
     headbuf = buffer_allocate(buffer_name);
@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
     prevbuf = minibuf;
 
     panel_left = curbuf;
-    panel_right = curbuf;
+    panel_right = NULL;
 
     printf("Font width: %d, Font height: %d\n", font_w, font_h);
 
@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
 
             is_event = SDL_PollEvent(&event);
         }
-        if (did_do_event || is_scroll) {
+        if (did_do_event || is_scroll || animated_highlights_active) {
             SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
             SDL_RenderClear(renderer);
 
@@ -87,8 +87,8 @@ int main(int argc, char **argv) {
 
             /* dt = ~1 ms. We want to scale the speed of the lerp to the frametime. */
             
-            curbuf->scroll.y = damp(curbuf->scroll.y, curbuf->scroll.target_y, 0.0001, dt);
-            curbuf->scroll.x = damp(curbuf->scroll.x, curbuf->scroll.target_x, 0.0001, dt);
+            curbuf->scroll.y = damp(curbuf->scroll.y, curbuf->scroll.target_y, 0.000001, dt);
+            curbuf->scroll.x = damp(curbuf->scroll.x, curbuf->scroll.target_x, 0.000001, dt);
 
             Uint32 end = SDL_GetPerformanceCounter();
             dt = (double)(1000*(end-start)) / SDL_GetPerformanceFrequency();

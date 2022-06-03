@@ -1,4 +1,4 @@
 @echo off
 pushd ..\bin\
-call ame.exe %1
+call ame.exe ..\src\main.c
 popd

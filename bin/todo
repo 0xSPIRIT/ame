@@ -1,14 +1,17 @@
 Features to implement:
 
-x Make horizontal scrolling work with panels.
-x Improve open-file autocomplete; bug. [Sigh, it was such a stupid error. I just missed
-  setting an string array to 0 by default.]
-x Bug with autocomplete with no string length in switch to buffer.
-x Add line to split-screen view.
+x I-search [ctrl+f]
+    x Implement normal search functionality.
+    x Add blue highlight animation for new search.
+    - Implement continuous incremental search functionality.
+x Goto line.
+x Make discard changes work.
+x Make return count as a text input when overwriting selection.
+
+- Removing lines doesn't subtract from the total line count.
 - Random extra letters appearing when typing, especially after autocomplete.
   Possibly some kind of leak or something...?
 - Undefined behaviour at alt+f4... something to do with making new files??
-- I-search [ctrl+f]
 - Performance with maximized window.
 - Undo/Redo
 - Mouse support

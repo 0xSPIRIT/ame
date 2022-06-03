@@ -6,6 +6,8 @@
 #include <stdbool.h>
 #include <SDL2/SDL.h>
 
+#include "highlight.h"
+
 extern struct Buffer *headbuf, *curbuf, *prevbuf;
 extern unsigned buffer_count; /* Includes the minibuffer. */
 
@@ -38,10 +40,13 @@ struct Buffer {
     int completion;                /* Amount of cycles into the completion. */
     char completion_original[256]; /* The original completion to compare against while tab-ing through. */
 
+    bool destructive;        /* Is the text wiped away after typing? */
     bool is_singular;        /* Singular means a special buffer where there's only one line, 
                                 and something important happens at RETURN. */
     int singular_state;      /* The state of the one-lined special buffer (minibuffer.) */
     int (*on_return)();      /* Function that executes once at RETURN if is_singular=true */
+
+    struct Isearch *search;  /* Incremental search data. */
 };
 
 struct Buffer *buffer_allocate(char name[BUF_NAME_LEN]);
@@ -58,6 +63,7 @@ void           buffer_backspace(struct Buffer *buf);
 void           buffer_reset_completion(struct Buffer *buf);
 void           buffer_kill(struct Buffer *buf);
 bool           buffer_is_scrolling(struct Buffer *buf);
+void           buffer_goto_line(struct Buffer *buf, int line);
 
 void buffer_forward_word(struct Buffer *buf);
 void buffer_backward_word(struct Buffer *buf);
@@ -77,6 +83,7 @@ struct Line {
 
     char pre_str[256];    /* String that displays before the main string. 
                              Used in minibuffer for prompts. */
+    struct Highlight hl;  /* A highlight, used in search. */
 };
 
 struct Line *line_allocate(struct Buffer *buf);
