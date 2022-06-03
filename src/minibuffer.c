@@ -36,7 +36,8 @@ void minibuffer_handle_input(SDL_Event *event) {
         switch (event->key.keysym.sym) {
             case SDLK_TAB: {
                 if (curbuf == minibuf) {
-                    minibuffer_attempt_autocomplete(is_shift() ? -1 : 1);
+                    int direction = is_shift() ? -1 : 1;
+                    minibuffer_attempt_autocomplete(direction);
                 }
                 break;
             }
@@ -235,8 +236,8 @@ void minibuffer_attempt_autocomplete(int direction) {
 
     switch (minibuf->singular_state) {
         case STATE_LOAD_FILE: case STATE_SAVE_FILE_AS: {
-            char dirname[256];
-            char filename[256];
+            char dirname[256] = {0};
+            char filename[256] = {0};
             int filecount = 0;
             DIR *d;
             struct dirent *dir;
@@ -310,8 +311,6 @@ void minibuffer_attempt_autocomplete(int direction) {
                 strcpy(minibuf->completion_original, str);
             }
 
-            printf("%d\n", minibuf->completion);
-
             for (buf = headbuf; buf; buf = buf->next) {
                 if (buf == prevbuf) continue; /* Obviously don't switch to the currently opened buffer. */
                 if (strlen(str) == 0) {
@@ -327,18 +326,21 @@ void minibuffer_attempt_autocomplete(int direction) {
 
             /* If it's an initial, we want to see the first element no matter direction. We don't want to skip the first one*/
             if (!is_initial) {
+                printf("Completion Index: %d, Total: %d, Direction: %d\n", minibuf->completion, i, direction);
                 minibuf->completion += direction;
+                printf("Completion Index After: %d\n", minibuf->completion);
                 if (minibuf->completion >= i) {
                     minibuf->completion = 0;
                 }
                 if (minibuf->completion < 0) {
                     minibuf->completion = i-1;
                 }
+                printf("Completion Index After 2: %d\n\n", minibuf->completion);
             }
 
             memset(minibuf->start_line->str, 0, minibuf->start_line->cap);
             minibuf->start_line->len = 0;
-            line_type_string(minibuf->start_line, 0, possibilities[minibuf->completion--]);
+            line_type_string(minibuf->start_line, 0, possibilities[minibuf->completion]);
             minibuf->point.pos = minibuf->start_line->len;
             
             break;

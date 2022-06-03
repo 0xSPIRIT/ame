@@ -77,14 +77,11 @@ void buffer_draw(struct Buffer *buf) {
         int pos = yoff*3 + yoff*font_h;
         if (pos > -font_h-buf->scroll.y && pos < window_height-buf->scroll.y) { /* Culling */
             if (line == buf->point.line && buf == curbuf && buf != minibuf) { /* Draw a little highlight on current line */
-                int w;
-                if ((panel_left && !panel_right) || (panel_right && !panel_left)) {
-                    w = window_width;
-                } else  w = window_width/2;
+                int w = window_width / panel_count();
                 SDL_Rect r = { 
-                    buf->x + buf->scroll.x + 3 + buf->scroll.x, 
+                    buf->x + buf->scroll.x + 3, 
                     buf->y + font_h*yoff + 3*yoff + buf->scroll.y, 
-                    w-6, 
+                    w - buf->scroll.x - 6, 
                     font_h
                 };
                 const int alpha = 255-240;
@@ -119,6 +116,10 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
             mark_unset(buf->mark);
         }
         line_type(buf->point.line, buf->point.pos++, *(event->text.text));
+        
+        if (3 + buf->point.pos * font_w > (window_width/panel_count())-buf->scroll.target_x) {
+            buf->scroll.target_x = -buf->point.pos * font_w + (window_width/panel_count()) - font_w - 3;
+        }
     } else if (event->type == SDL_MOUSEWHEEL) {
         int y = event->wheel.y;
         buf->scroll.target_y += 3 * y * (font_h + 3);
@@ -290,7 +291,7 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                         } else  buf->point.pos = buf->point.line->len;
                     }
                 }
-                if (3 + buf->point.pos * font_w > window_width-buf->scroll.target_x) {
+                if (3 + buf->point.pos * font_w > (window_width/panel_count())-buf->scroll.target_x) {
                     buf->scroll.target_x = -buf->point.pos * font_w;
                 }
                 break;
@@ -359,8 +360,8 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                             buffer_point_to_end(buf);
                         } else {
                             buf->point.pos = buf->point.line->len;
-                            if (3 + buf->point.pos * font_w > window_width-buf->scroll.target_x) {
-                                buf->scroll.target_x = -buf->point.pos * font_w + window_width - font_w - 3;
+                            if (3 + buf->point.pos * font_w > (window_width/panel_count())-buf->scroll.target_x) {
+                                buf->scroll.target_x = -buf->point.pos * font_w + (window_width/panel_count()) - font_w - 3;
                             }
                         }
                         break;
@@ -391,7 +392,6 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                     char *text = mark_get_text(buf->mark);
                     SDL_SetClipboardText(text);
                     free(text);
-                    mark_unset(buf->mark);
                 }
                 break;
             }
@@ -688,6 +688,7 @@ void buffer_point_to_beginning(struct Buffer *buf) {
     buf->point.line = buf->start_line;
     buf->point.pos = 0;
     buf->scroll.target_y = 0;
+    buf->scroll.target_x = 0;
 }
 
 void buffer_point_to_end(struct Buffer *buf) {

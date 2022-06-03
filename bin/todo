@@ -1,17 +1,12 @@
 Features to implement:
 
-x Bug with DEL on last character of a buffer.
-x Remove 60fps loop, and remove all associated issues.
-x Just get rid of having the buffer name in the title TBH.
-x Bug with minibuffer and different sized windows.
-x Creating new files doesn't work properly.
-x Ctrl+down goes to the end of the line if it reaches last line.
-x Panels
-   - Make horizontal scrolling work.
-x Alt+e Alt+a Alt+h
-x Switch to buffer doesn't work with multiple buffers.
-- Bug with autocomplete with no string length in switch to buffer.
-- Improve open-file autocomplete;
+x Make horizontal scrolling work with panels.
+x Improve open-file autocomplete; bug. [Sigh, it was such a stupid error. I just missed
+  setting an string array to 0 by default.]
+x Bug with autocomplete with no string length in switch to buffer.
+x Add line to split-screen view.
+- Random extra letters appearing when typing, especially after autocomplete.
+  Possibly some kind of leak or something...?
 - Undefined behaviour at alt+f4... something to do with making new files??
 - I-search [ctrl+f]
 - Performance with maximized window.
