@@ -52,7 +52,7 @@ void buffer_deallocate(struct Buffer *buf) {
     free(buf);
 }
 
-static void buffer_draw_point(struct Buffer *buf) {
+static void buffer_draw_point(struct Buffer *buf, bool is_active) {
     int spacing = 3;
     const SDL_Rect dst = {
         buf->x + buf->scroll.x + buf->point.pos * font_w + strlen(buf->point.line->pre_str) * font_w + spacing,
@@ -60,8 +60,14 @@ static void buffer_draw_point(struct Buffer *buf) {
         font_w,
         font_h
     };
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderDrawRect(renderer, &dst);
+
+    if (is_active) {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderDrawRect(renderer, &dst);
+    } else {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 127);
+        SDL_RenderFillRect(renderer, &dst);
+    }
 }
 
 void buffer_draw(struct Buffer *buf) {
@@ -110,8 +116,7 @@ void buffer_draw(struct Buffer *buf) {
         yoff++;
     }
 
-    if (buf == curbuf)
-        buffer_draw_point(buf);
+    buffer_draw_point(buf, buf == curbuf);
 }
 
 static void buffer_limit_point(struct Buffer *buf) {
@@ -225,7 +230,7 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
             case SDLK_a: {
                 if (is_ctrl()) {
                     buffer_point_to_beginning(buf);
-                    mark_set(buf->mark, false);
+                    mark_set(buf->mark, true);
                     buffer_point_to_end(buf);
                 }
                 break;

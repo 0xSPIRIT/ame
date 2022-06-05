@@ -7,9 +7,15 @@ void modeline_draw_rect() {
         0, window_height - font_h*2,
         window_width, font_h
     };
+    SDL_Rect outline_rect = {
+        0, window_height - font_h*2 - 1,
+        window_width, font_h + 1
+    };
 
     SDL_SetRenderDrawColor(renderer, 240, 240, 240, 255);
     SDL_RenderFillRect(renderer, &mode_rect);
+    SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255);
+    SDL_RenderDrawRect(renderer, &outline_rect);
 }
 
 void buffer_modeline_draw(struct Buffer *buf) {

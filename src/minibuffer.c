@@ -321,7 +321,6 @@ void minibuffer_attempt_autocomplete(int direction) {
         case STATE_LOAD_FILE: case STATE_SAVE_FILE_AS: {
             char dirname[256] = {0};
             char filename[256] = {0};
-            int filecount = 0;
             DIR *d;
             struct dirent *dir;
 
@@ -338,16 +337,7 @@ void minibuffer_attempt_autocomplete(int direction) {
             d = opendir(dirname);
             if (d) {
                 while ((dir = readdir(d)) != NULL) {
-                    filecount++;
-                }
-                closedir(d);
-            } else {
-                return;
-            }
-
-            d = opendir(dirname);
-            if (d) {
-                while ((dir = readdir(d)) != NULL) {
+                    if (0==strcmp(dir->d_name, ".") || 0==strcmp(dir->d_name, "..")) continue;
                     if (strlen(filename) == 0) {
                         strcpy(possibilities[i++], dir->d_name);
                         continue;
@@ -409,16 +399,13 @@ void minibuffer_attempt_autocomplete(int direction) {
 
             /* If it's an initial, we want to see the first element no matter direction. We don't want to skip the first one*/
             if (!is_initial) {
-                printf("Completion Index: %d, Total: %d, Direction: %d\n", minibuf->completion, i, direction);
                 minibuf->completion += direction;
-                printf("Completion Index After: %d\n", minibuf->completion);
                 if (minibuf->completion >= i) {
                     minibuf->completion = 0;
                 }
                 if (minibuf->completion < 0) {
                     minibuf->completion = i-1;
                 }
-                printf("Completion Index After 2: %d\n\n", minibuf->completion);
             }
 
             memset(minibuf->start_line->str, 0, minibuf->start_line->cap);

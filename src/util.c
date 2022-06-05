@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <math.h>
 #include <ctype.h>
+#include <sys/stat.h>
 
 int sign(int n) {
     if (n < 0) {
@@ -71,44 +72,38 @@ int string_begins_with(const char *a, const char *b) {
 }
 
 /* Taken from https://stackoverflow.com/a/27304609 */
-char* stristr( const char* str1, const char* str2 )
-{
-    const char* p1 = str1 ;
-    const char* p2 = str2 ;
-    const char* r = *p2 == 0 ? str1 : 0 ;
+char* stristr(const char* str1, const char* str2) {
+    const char* p1 = str1;
+    const char* p2 = str2;
+    const char* r = *p2 == 0 ? str1 : 0;
 
-    while( *p1 != 0 && *p2 != 0 )
-    {
-        if( tolower( (unsigned char)*p1 ) == tolower( (unsigned char)*p2 ) )
-        {
-            if( r == 0 )
-            {
-                r = p1 ;
+    while (*p1 != 0 && *p2 != 0) {
+        if (tolower((unsigned char)*p1) == tolower((unsigned char)*p2)) {
+            if (r == 0) {
+                r = p1;
+            }
+            p2++;
+        } else {
+            p2 = str2;
+            if (r != 0) {
+                p1 = r+1;
             }
 
-            p2++ ;
-        }
-        else
-        {
-            p2 = str2 ;
-            if( r != 0 )
-            {
-                p1 = r + 1 ;
-            }
-
-            if( tolower( (unsigned char)*p1 ) == tolower( (unsigned char)*p2 ) )
-            {
-                r = p1 ;
-                p2++ ;
-            }
-            else
-            {
-                r = 0 ;
+            if (tolower((unsigned char)*p1) == tolower((unsigned char)*p2)) {
+                r = p1;
+                p2++;
+            } else {
+                r = 0;
             }
         }
-
-        p1++ ;
+        p1++;
     }
-
     return *p2 == 0 ? (char*)r : 0 ;
+}
+
+int is_directory(const char *path) {
+   struct stat statbuf;
+   if (stat(path, &statbuf) != 0)
+       return 0;
+   return S_ISDIR(statbuf.st_mode);
 }

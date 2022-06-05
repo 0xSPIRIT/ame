@@ -78,8 +78,7 @@ void buffer_isearch_mark_matching(struct Buffer *buf, char *str) {
             char *match = stristr(line->str + start, str);
             if (match) {
                 if (first) {
-                    col.r = col.b = 127;
-                    col.g = 64;
+                    col = (SDL_Color){202, 127, 235, 255};
                     first = false;
     
                     /* If the first one is offscreen, center the screen onto it. */

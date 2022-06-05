@@ -1,20 +1,17 @@
 Features to implement:
 
-x Ctrl+w crashes sometimes.
-x Implement continuous incremental search functionality like emacs.
-  x Highlight all matching.
-  x Highlight current match and move screen to that position.
-  x If outside current view, center the view onto that.
-x Case insensitivity in search.
-x Set new cwd upon loading file.
-x Bug: Removing lines doesn't subtract from the total line count.
+x Put marker where point is in inactive panel.
+x Make cwd switch depending on what panel you're in.
+x Remove . and .. from tab completion in minibuffer.
 
+- "switch to buffer if you're trying to load a file already opened" doesn't work with
+  multiple panels. Must switch the panel as well.
 - Streamline x_scroll and y_scroll switching- make a function or something.
 - Remove line spaces / make it not hardcoded.
 - Random extra letters appearing when typing, especially after autocomplete;
     Possibly some kind of leak or something...?
 - Fix crashes etc by debugging.
-- Undefined behaviour at alt+f4... something to do with making new files??
+- Undefined behaviour on exit... something to do with making new files??
 - Performance with maximized window.
 - Undo/Redo
 - Mouse support

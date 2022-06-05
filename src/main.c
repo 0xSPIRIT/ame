@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdbool.h>
+#include <dirent.h>
 
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
@@ -85,6 +86,16 @@ int main(int argc, char **argv) {
         if (did_do_event || is_scroll || animated_highlights_active) {
             SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
             SDL_RenderClear(renderer);
+
+            char cwd[256] = {0};
+            get_cwd(cwd);
+
+            char curdir[256] = {0};
+            isolate_directory(curdir, curbuf->filename);
+
+            if (curbuf != minibuf && 0 != strcmp(cwd, curdir)) {
+                chdir(curdir);
+            }
 
             buffers_draw();    
 
