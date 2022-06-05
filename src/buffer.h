@@ -75,15 +75,16 @@ struct Line {
     struct Line *prev;
     struct Line *next;
 
-    struct Buffer *buf;   /* Buffer the line belongs to */
-    int y;                /* Line number */
+    struct Buffer *buf;        /* Buffer the line belongs to */
+    int y;                     /* Line number */
 
-    char *str;            /* Dynamically allocated array of chars */
+    char *str;                 /* Dynamically allocated array of chars */
     int len, cap;
 
-    char pre_str[256];    /* String that displays before the main string. 
-                             Used in minibuffer for prompts. */
-    struct Highlight hl;  /* A highlight, used in search. */
+    char pre_str[256];         /* String that displays before the main string. 
+                                  Used in minibuffer for prompts. */
+    struct Highlight hls[255]; /* A highlight, used in search. */
+    int hl_count;              /* Amount of highlights in the line. */
 };
 
 struct Line *line_allocate(struct Buffer *buf);

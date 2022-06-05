@@ -5,6 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <math.h>
+#include <ctype.h>
 
 int sign(int n) {
     if (n < 0) {
@@ -67,4 +68,47 @@ void get_cwd(char *dst) {
 int string_begins_with(const char *a, const char *b) {
    if(strncmp(a, b, strlen(b)) == 0) return 1;
    return 0;
+}
+
+/* Taken from https://stackoverflow.com/a/27304609 */
+char* stristr( const char* str1, const char* str2 )
+{
+    const char* p1 = str1 ;
+    const char* p2 = str2 ;
+    const char* r = *p2 == 0 ? str1 : 0 ;
+
+    while( *p1 != 0 && *p2 != 0 )
+    {
+        if( tolower( (unsigned char)*p1 ) == tolower( (unsigned char)*p2 ) )
+        {
+            if( r == 0 )
+            {
+                r = p1 ;
+            }
+
+            p2++ ;
+        }
+        else
+        {
+            p2 = str2 ;
+            if( r != 0 )
+            {
+                p1 = r + 1 ;
+            }
+
+            if( tolower( (unsigned char)*p1 ) == tolower( (unsigned char)*p2 ) )
+            {
+                r = p1 ;
+                p2++ ;
+            }
+            else
+            {
+                r = 0 ;
+            }
+        }
+
+        p1++ ;
+    }
+
+    return *p2 == 0 ? (char*)r : 0 ;
 }

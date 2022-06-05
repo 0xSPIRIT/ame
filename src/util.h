@@ -18,4 +18,6 @@ void isolate_directory(char *dst, char *src);
 void get_cwd(char *dst);
 int string_begins_with(const char *a, const char *b);
 
+char *stristr(const char *str1, const char *str2);
+
 #endif /* UTIL_H_ */

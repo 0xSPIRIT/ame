@@ -75,6 +75,11 @@ int main(int argc, char **argv) {
             buffer_handle_input(curbuf, &event);
             minibuffer_handle_input(&event);
 
+            curbuf->scroll.y = curbuf->scroll.target_y;
+            curbuf->scroll.x = curbuf->scroll.target_x;
+            prevbuf->scroll.y = prevbuf->scroll.target_y;
+            prevbuf->scroll.x = prevbuf->scroll.target_x;
+
             is_event = SDL_PollEvent(&event);
         }
         if (did_do_event || is_scroll || animated_highlights_active) {
@@ -86,9 +91,14 @@ int main(int argc, char **argv) {
             SDL_RenderPresent(renderer);
 
             /* dt = ~1 ms. We want to scale the speed of the lerp to the frametime. */
-            
+
+/*            
             curbuf->scroll.y = damp(curbuf->scroll.y, curbuf->scroll.target_y, 0.000001, dt);
             curbuf->scroll.x = damp(curbuf->scroll.x, curbuf->scroll.target_x, 0.000001, dt);
+
+            prevbuf->scroll.y = damp(prevbuf->scroll.y, prevbuf->scroll.target_y, 0.000001, dt);
+            prevbuf->scroll.x = damp(prevbuf->scroll.x, prevbuf->scroll.target_x, 0.000001, dt);
+*/
 
             Uint32 end = SDL_GetPerformanceCounter();
             dt = (double)(1000*(end-start)) / SDL_GetPerformanceFrequency();

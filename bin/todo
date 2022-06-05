@@ -1,18 +1,21 @@
 Features to implement:
 
-x I-search [ctrl+f]
-    x Implement normal search functionality.
-    x Add blue highlight animation for new search.
-    - Implement continuous incremental search functionality.
-x Goto line.
-x Make discard changes work.
-x Make return count as a text input when overwriting selection.
+x Ctrl+w crashes sometimes.
+x Implement continuous incremental search functionality like emacs.
+  x Highlight all matching.
+  x Highlight current match and move screen to that position.
+  x If outside current view, center the view onto that.
+x Case insensitivity in search.
+x Set new cwd upon loading file.
+x Bug: Removing lines doesn't subtract from the total line count.
 
-- Removing lines doesn't subtract from the total line count.
-- Random extra letters appearing when typing, especially after autocomplete.
-  Possibly some kind of leak or something...?
+- Streamline x_scroll and y_scroll switching- make a function or something.
+- Remove line spaces / make it not hardcoded.
+- Random extra letters appearing when typing, especially after autocomplete;
+    Possibly some kind of leak or something...?
+- Fix crashes etc by debugging.
 - Undefined behaviour at alt+f4... something to do with making new files??
 - Performance with maximized window.
 - Undo/Redo
 - Mouse support
-- Streamline x_scroll and y_scroll switching- reduce the copy-pasting
+- Find/Replace [query?]

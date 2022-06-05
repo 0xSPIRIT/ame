@@ -4,6 +4,7 @@
 #include <string.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
+#include <dirent.h>
 
 #include "globals.h"
 #include "util.h"
@@ -94,10 +95,15 @@ void buffer_draw(struct Buffer *buf) {
                 SDL_RenderFillRect(renderer, &r);
                 SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
             }
-            highlight_update(&line->hl);
-            if (line->hl.active) {
-                highlight_draw(line->hl, 3 + buf->scroll.x, buf->y + font_h*yoff + 3*yoff + buf->scroll.y);
+
+            int i;
+            for (i = 0; i < line->hl_count; i++) {
+                highlight_update(&line->hls[i]);
+                if (line->hls[i].active) {
+                    highlight_draw(line->hls[i], 3 + buf->scroll.x, buf->y + font_h*yoff + 3*yoff + buf->scroll.y);
+                }
             }
+
             line_draw(line, yoff, buf->scroll.x, buf->scroll.y);
         }
         amt++;
@@ -571,12 +577,17 @@ void buffer_save(struct Buffer *buf) {
 
 int buffer_load_file(struct Buffer *buf, char *file) {
     FILE *fp = fopen(file, "r");
+    char directory[256] = {0};
+
     if (!fp) {
         return 1;
     }
 
     strcpy(buf->filename, file);
     remove_directory(buf->name, file);
+
+    isolate_directory(directory, file);
+    chdir(directory);
 
     char line[1024];
     while (fgets(line, sizeof(line), fp)) {
@@ -615,12 +626,10 @@ void buffer_set_edited(struct Buffer *buf, bool edited) {
     if (edited && title[0] != '*') {
         char new_title[256] = "*";
         strcat(new_title, title);
-        puts(new_title);
         SDL_SetWindowTitle(window, new_title);
     } else if (!edited && title[0] == '*') {
         char new_title[256];
         strcpy(new_title, title+1);
-        puts(new_title);
         SDL_SetWindowTitle(window, new_title);
     }
 }
@@ -762,7 +771,7 @@ void line_remove(struct Line *line) {
     }
 
     line_deallocate(line);
-    line->buf->line_count++;
+    line->buf->line_count--;
 }
 
 void line_type(struct Line *line, int pos, char c) {

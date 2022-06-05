@@ -10,5 +10,6 @@ struct Isearch {
 };
 
 void buffer_isearch_goto_matching(struct Buffer *buf, char *str);
+void buffer_isearch_mark_matching(struct Buffer *buf, char *str);
 
 #endif /* ISEARCH_H_ */

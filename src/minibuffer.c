@@ -26,6 +26,10 @@ void minibuffer_deallocate() {
 void minibuffer_handle_input(SDL_Event *event) {
     minibuf->y = window_height - font_h;
 
+    if (minibuf->singular_state == STATE_ISEARCH) {
+        buffer_isearch_mark_matching(prevbuf, minibuf->start_line->str);
+    }
+
     if (event->type == SDL_TEXTINPUT) {
         buffer_reset_completion(minibuf);
     }
@@ -69,8 +73,13 @@ void minibuffer_handle_input(SDL_Event *event) {
                         }
                         minibuf->point.pos = minibuf->start_line->len;
                     } else {
+                        /* Go to the first match, then move one position ahead if possible, then mark the new matches. */
                         buffer_isearch_goto_matching(prevbuf, minibuf->start_line->str);
-                        minibuffer_return();
+                        prevbuf->point.pos++;
+                        if (prevbuf->point.pos >= prevbuf->point.line->len && prevbuf->point.line->next) {
+                            prevbuf->point.line = prevbuf->point.line->next;
+                        }
+                        buffer_isearch_mark_matching(prevbuf, minibuf->start_line->str);
                     }
                 }
                 break;
@@ -114,9 +123,10 @@ void minibuffer_handle_input(SDL_Event *event) {
                         minibuf->singular_state = STATE_KILL_BUFFER;
                         strcpy(minibuf->start_line->pre_str, "Discard changes and kill buffer? (y/n): ");
                     } else {
+                        struct Buffer *buf = curbuf;
                         buffer_kill(curbuf);
-                        if (panel_left == curbuf) panel_left = curbuf;
-                        if (panel_right == curbuf) panel_right = curbuf;
+                        if (panel_left == buf) panel_left = curbuf;
+                        if (panel_right == buf) panel_right = curbuf;
                     }
                 }
                 break;
@@ -125,6 +135,14 @@ void minibuffer_handle_input(SDL_Event *event) {
                 if (is_ctrl()) {
                     mark_unset(minibuf->mark);
                     minibuffer_return();
+
+                    struct Line *line;
+                    /* Destroy previous highlights. */
+                    for (line = curbuf->point.line; line; line = line->next) {
+                        int i, c = line->hl_count;
+                        for (i = 0; i < c; i++)
+                            highlight_stop(&line->hls[i]);
+                    }
                 } else if (is_alt()) {
                     prevbuf = curbuf;
                     curbuf = minibuf;
@@ -148,7 +166,6 @@ void minibuffer_handle_input(SDL_Event *event) {
             }
             case SDLK_h: {
                 if (is_alt() && (!panel_left || !panel_right)) {
-                    printf("Occured!\n");
                     if (curbuf == panel_left) panel_right = curbuf;
                     else if (curbuf == panel_right) panel_left = curbuf;
                 } break;
@@ -174,6 +191,8 @@ int minibuffer_execute() {
             struct Buffer *a;
             for (a = headbuf; a; a = a->next) {
                 if (0==strcmp(a->filename, command)) {
+                    if (prevbuf == panel_left) panel_left = a;
+                    if (prevbuf == panel_right) panel_left = a;
                     prevbuf = a;
                     goto end;
                 }
@@ -275,6 +294,7 @@ int minibuffer_execute() {
 
 void minibuffer_return() {
     buffer_reset_completion(minibuf);
+    minibuf->destructive = false;
     if (curbuf == minibuf) {
         minibuffer_reset();
         curbuf = prevbuf;
