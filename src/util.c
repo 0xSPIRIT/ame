@@ -107,3 +107,22 @@ int is_directory(const char *path) {
        return 0;
    return S_ISDIR(statbuf.st_mode);
 }
+
+/* Check which is more common at the start of lines: tabs or spaces. */
+int determine_tabs_indent_method(const char *str) {
+    int indent = 0;
+    int is_start_of_line = 1;
+    while (*str) {
+        if (*str == '\n') {
+            is_start_of_line = 1;
+            ++str; continue;
+        }
+        if (is_start_of_line) {
+            if (*str == '\t')     indent++;
+            else if (*str == ' ') indent--;
+            is_start_of_line = 0;
+        }
+        ++str;
+    }
+    return indent > 0;
+}

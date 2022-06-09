@@ -133,10 +133,29 @@ void mark_draw(struct Mark *mark) {
             w = mark->end->pos - x;
         }
         x += strlen(line->pre_str);
+
+        int tab_offset = 0;
+        int tab_width_offset = 0;
+        int i;
+
+        if (line == mark->start->line) {
+            for (i = 0; i < mark->start->pos; i++) {
+                if (line->str[i] == '\t') tab_offset += font_w * (4-1); /* -1 to remove the offset that's already there. */
+            }
+        } else if (line == mark->end->line) {
+            for (i = 0; i < mark->end->pos; i++) {
+                if (line->str[i] == '\t') tab_offset += font_w * 4; /* -1 to remove the offset that's already there. */
+            }
+        } else {
+            for (i = 0; i < line->len; i++) {
+                if (line->str[i] == '\t') tab_width_offset += font_w * 4;
+            }
+        }
+
         SDL_Rect selection = {
-            mark->buf->x + mark->buf->scroll.x + 3 + x * font_w, 
+            tab_offset + mark->buf->x + mark->buf->scroll.x + 3 + x * font_w, 
             mark->buf->y + mark->buf->scroll.y + pos-3,
-            w * font_w, font_h+6
+            tab_width_offset + w * font_w, font_h+6
         };
         SDL_RenderFillRect(renderer, &selection);
         yoff++;

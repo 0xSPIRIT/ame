@@ -25,6 +25,7 @@ void minibuffer_deallocate() {
 
 void minibuffer_handle_input(SDL_Event *event) {
     minibuf->y = window_height - font_h;
+    minibuf->scroll.target_y = minibuf->scroll.y = 0;
 
     if (minibuf->singular_state == STATE_ISEARCH) {
         buffer_isearch_mark_matching(prevbuf, minibuf->start_line->str);
@@ -209,8 +210,10 @@ int minibuffer_execute() {
                 printf("New file name: %s\n", buf->filename);
             }
 
-            prevbuf->next = buf; /* Set the new buffer to the next in the linked list. */
-            prevbuf->next->prev = prevbuf;
+            /* Set the new buffer to the next in the linked list, and fix up the pointers. */
+            buf->next = prevbuf->next;
+            buf->prev = prevbuf;
+            prevbuf->next = buf;
             prevbuf = prevbuf->next;
 
             break;

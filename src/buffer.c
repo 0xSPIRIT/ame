@@ -54,8 +54,15 @@ void buffer_deallocate(struct Buffer *buf) {
 
 static void buffer_draw_point(struct Buffer *buf, bool is_active) {
     int spacing = 3;
+
+    int tab_offset = 0;
+    int i;
+    for (i = 0; i < buf->point.pos; i++) {
+        if (buf->point.line->str[i] == '\t') tab_offset += font_w * (4-1); /* -1 to remove the offset that's already there. */
+    }
+
     const SDL_Rect dst = {
-        buf->x + buf->scroll.x + buf->point.pos * font_w + strlen(buf->point.line->pre_str) * font_w + spacing,
+        tab_offset + buf->x + buf->scroll.x + buf->point.pos * font_w + strlen(buf->point.line->pre_str) * font_w + spacing,
         buf->y + buf->scroll.y + buf->point.line->y * font_h + spacing * buf->point.line->y,
         font_w,
         font_h
@@ -192,8 +199,13 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                     if (panel_left == bef) panel_left = curbuf;
                     if (panel_right == bef) panel_right = curbuf;
                 } else {
-                    line_type_string(buf->point.line, buf->point.pos, "    ");
-                    buf->point.pos += 4;
+                    if (curbuf->indent_mode == 0) {
+                        line_type_string(buf->point.line, buf->point.pos, "    ");
+                        buf->point.pos += 4;
+                    } else {
+                        line_type(buf->point.line, buf->point.pos, '\t');
+                        buf->point.pos += 1;
+                    }
                 }
                 break;
             }
@@ -269,6 +281,7 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                         buffer_limit_point(buf);
                     }
                 }
+                buffer_set_edited(buf, true);
                 break;
             }
             case SDLK_BACKSPACE: {
@@ -588,13 +601,19 @@ int buffer_load_file(struct Buffer *buf, char *file) {
         return 1;
     }
 
-    strcpy(buf->filename, file);
+    char absolute_path[BUF_NAME_LEN] = {0};
+    _fullpath(absolute_path, file, BUF_NAME_LEN);
+
+    strcpy(buf->filename, absolute_path); /* Use the absolute path for the stored directory. */
     remove_directory(buf->name, file);
 
     isolate_directory(directory, file);
     chdir(directory);
 
-    char line[1024];
+    int total_len = 0, total_cap = 2048;
+    char *total_string = alloc(total_cap, sizeof(char));
+
+    char line[1024] = {0};
     while (fgets(line, sizeof(line), fp)) {
         int i;
         int len = strlen(line);
@@ -602,8 +621,19 @@ int buffer_load_file(struct Buffer *buf, char *file) {
             if (line[i] == '\n') continue;
             line_type(buf->point.line, buf->point.pos++, line[i]);
         }
+        int line_len = buf->point.line->len;
+
         buffer_newline(buf);
+
+        total_len += line_len+1;
+        if (total_len >= total_cap) {
+            total_cap *= 2;
+            total_string = realloc(total_string, total_cap);
+        }
+        strcat(total_string, line);
     }
+
+    buf->indent_mode = determine_tabs_indent_method(total_string);
 
     fclose(fp);
 
@@ -775,8 +805,8 @@ void line_remove(struct Line *line) {
         l->y = prev+1;
     }
 
-    line_deallocate(line);
     line->buf->line_count--;
+    line_deallocate(line);
 }
 
 void line_type(struct Line *line, int pos, char c) {
@@ -856,7 +886,19 @@ void line_draw(struct Line *line, int yoff, int scroll_x, int scroll_y) {
         if (line->buf->destructive) {
             col.a = 127;
         }
-        SDL_Surface *surf = TTF_RenderText_Blended(font, line->str, col);
+
+        /* Convert tabs to spaces before rendering. */
+        int i;
+        char *draw_string = alloc(line->len * 4 + 1, sizeof(char)); /* Allocating the most needed. */
+        for (i = 0; i < line->len; i++) {
+            if (line->str[i] == '\t') {
+                strcat(draw_string, "    ");
+            } else {
+                strcat(draw_string, (char[2]){line->str[i], 0});
+            }
+        }
+
+        SDL_Surface *surf = TTF_RenderText_Blended(font, draw_string, col);
         SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surf);
 
         const SDL_Rect dst = (SDL_Rect){

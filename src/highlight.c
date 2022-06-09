@@ -43,5 +43,7 @@ void highlight_update(struct Highlight *hl) {
         hl->line->hl_count--;
     } else {
         hl->time -= dt/1000.0;
+        if (hl->time < 0) hl->time = 0;
     }
 }
+

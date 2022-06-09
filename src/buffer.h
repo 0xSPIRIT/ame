@@ -27,6 +27,8 @@ struct Buffer {
     char name[BUF_NAME_LEN];
     char filename[BUF_NAME_LEN];
 
+    int indent_mode;         /* 1 is tab, 0 is spaces. */
+
     int x, y;                /* Offsets for the entire buffer. */
 
     struct Line *start_line; /* Doubly linked list of lines */
