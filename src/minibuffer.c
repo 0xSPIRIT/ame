@@ -6,6 +6,7 @@
 #include "mark.h"
 #include "panel.h"
 #include "isearch.h"
+#include "replace.h"
 
 #include <dirent.h>
 
@@ -85,6 +86,22 @@ void minibuffer_handle_input(SDL_Event *event) {
                 }
                 break;
             }
+            
+            case SDLK_h: {
+                if (!curbuf->is_singular) {
+                    if (is_ctrl()) {
+                        prevbuf = curbuf;
+                        curbuf = minibuf;
+                        minibuf->singular_state = STATE_FIND;
+                        strcpy(minibuf->start_line->pre_str, "Find: ");
+                    } else if (is_alt() && (!panel_left || !panel_right)) {
+                        if (curbuf == panel_left) panel_right = curbuf;
+                        else if (curbuf == panel_right) panel_left = curbuf;
+                    }
+                }
+                break;
+            }
+            
             case SDLK_s: {
                 if (is_ctrl() && !is_shift() && !curbuf->is_singular) {
                     if (strlen(curbuf->filename) > 0) {
@@ -116,12 +133,23 @@ void minibuffer_handle_input(SDL_Event *event) {
                 }
                 break;
             }
+
+            case SDLK_k: { 
+                if (!curbuf->is_singular && is_ctrl() && is_shift()) {
+                    prevbuf = curbuf;
+                    curbuf = minibuf;
+                    minibuf->singular_state = STATE_KILL_BUFFER;
+                    strcpy(minibuf->start_line->pre_str, "Kill buffer: ");
+                }
+                break;
+            }
+
             case SDLK_w: {
-                if (is_ctrl()) {
+                if (is_ctrl() && !curbuf->is_singular) {
                     if (curbuf->edited) {
                         prevbuf = curbuf;
                         curbuf = minibuf;
-                        minibuf->singular_state = STATE_KILL_BUFFER;
+                        minibuf->singular_state = STATE_KILL_CURRENT_BUFFER;
                         strcpy(minibuf->start_line->pre_str, "Discard changes and kill buffer? (y/n): ");
                     } else {
                         struct Buffer *buf = curbuf;
@@ -165,12 +193,6 @@ void minibuffer_handle_input(SDL_Event *event) {
                     if (curbuf == panel_right) panel_right = NULL;
                 } break;
             }
-            case SDLK_h: {
-                if (is_alt() && (!panel_left || !panel_right)) {
-                    if (curbuf == panel_left) panel_right = curbuf;
-                    else if (curbuf == panel_right) panel_left = curbuf;
-                } break;
-            }
         }
     }
 }
@@ -193,7 +215,7 @@ int minibuffer_execute() {
             for (a = headbuf; a; a = a->next) {
                 if (0==strcmp(a->filename, command)) {
                     if (prevbuf == panel_left) panel_left = a;
-                    if (prevbuf == panel_right) panel_left = a;
+                    if (prevbuf == panel_right) panel_right = a;
                     prevbuf = a;
                     goto end;
                 }
@@ -226,6 +248,22 @@ int minibuffer_execute() {
             buffer_save(prevbuf);
             break;
         }
+        case STATE_FIND: {
+            if (strlen(command) >= 1024) return 0;
+            strcpy(find, command);
+            minibuf->singular_state = STATE_REPLACE;
+            strcpy(minibuf->start_line->pre_str, "Replace: ");
+            memset(minibuf->start_line->str, 0, minibuf->start_line->cap);
+            minibuf->start_line->len = 0;
+            minibuf->point.pos = 0;
+            return 0; /* Don't go to end of function, where it will reset. */
+        }
+        case STATE_REPLACE: {
+            if (strlen(command) >= 1024) return 0;
+            strcpy(replace, command);
+            buffer_replace_matching(prevbuf, find, replace);
+            break;
+        }
         case STATE_SWITCH_TO_BUFFER: {
             struct Buffer *buf = headbuf;
             while (buf) {
@@ -243,35 +281,24 @@ int minibuffer_execute() {
             /* If we reach here then there is no matching buffer. Create a new buffer. */
             break;
         }
-        case STATE_KILL_BUFFER: {
+        case STATE_KILL_CURRENT_BUFFER: {
             if (*command == 'y') {
-                if (panel_left == prevbuf) {
-                    if (prevbuf->next) {
-                        panel_left = prevbuf->next;
-                    } else {
-                        struct Buffer *buf = prevbuf;
-                        while (buf->prev) {
-                            buf = buf->prev;
-                            panel_left = buf;
-                        }
-               	    }
-                } 
-                if (panel_right == prevbuf) {
-                    if (prevbuf->next) {
-                        panel_right = prevbuf->next;
-                    } else {
-                        struct Buffer *buf = prevbuf;
-                        while (buf->prev) {
-                            buf = buf->prev;
-                            panel_left = buf;
-                        }
-               	    }
-                }
                 buffer_kill(prevbuf);
             } else if (*command == 'n') {
             } else {
                 strcpy(minibuf->start_line->pre_str, "Discard changes and kill buffer? (y/n) [Must be y or n]: ");
                 return 0;
+            }
+            break;
+        }
+        case STATE_KILL_BUFFER: {
+            struct Buffer *buf = headbuf;
+            while (buf) {
+                if (0==strcmp(buf->name, command)) {
+                    buffer_kill(buf);
+                    break;
+                }
+                buf = buf->next;
             }
             break;
         }
@@ -375,7 +402,7 @@ void minibuffer_attempt_autocomplete(int direction) {
 
             break;
         }
-        case STATE_SWITCH_TO_BUFFER: {
+        case STATE_SWITCH_TO_BUFFER: case STATE_KILL_BUFFER: {
             /* If there is one option, then choose that. Otherwise print the possibilities. */
             struct Buffer *buf;
             int i = 0;

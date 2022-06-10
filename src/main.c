@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
 
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     
-    font = TTF_OpenFont("consola.ttf", 17);
+    font = TTF_OpenFont("consola.ttf", 19);
     TTF_SizeText(font, " ", &font_w, &font_h);
 
     headbuf = buffer_allocate(buffer_name);

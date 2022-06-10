@@ -81,7 +81,7 @@ int mark_get_length(struct Mark *mark) {
         if (line == mark->end->line) {
             e = mark->end->pos;
         }
-        len += e-x + 1; /* +1 for \n */
+        len += e-x + 2; /* +2 for \n and \0 */
     }
     return len;
 }

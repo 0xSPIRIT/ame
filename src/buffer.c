@@ -173,6 +173,7 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                 }
                 if (!buf->is_singular) {
                     buffer_newline(buf);
+                    buffer_auto_indent(buf);
                 } else {
                     buf->on_return();
                 }
@@ -199,13 +200,7 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                     if (panel_left == bef) panel_left = curbuf;
                     if (panel_right == bef) panel_right = curbuf;
                 } else {
-                    if (curbuf->indent_mode == 0) {
-                        line_type_string(buf->point.line, buf->point.pos, "    ");
-                        buf->point.pos += 4;
-                    } else {
-                        line_type(buf->point.line, buf->point.pos, '\t');
-                        buf->point.pos += 1;
-                    }
+                    buffer_type_tab(buf);
                 }
                 break;
             }
@@ -438,6 +433,7 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                     char *text = mark_get_text(buf->mark);
                     SDL_SetClipboardText(text);
                     free(text);
+                    mark_unset(buf->mark);
                 }
                 break;
             }
@@ -677,18 +673,11 @@ void buffer_reset_completion(struct Buffer *buf) {
 
 void buffer_kill(struct Buffer *buf) {
     if (!buf->prev && !buf->next) return;
-
-    if (curbuf == buf) {
-        if (buf->next) curbuf = buf->next;
-        if (buf->prev) curbuf = buf->prev;
-    }
-    if (prevbuf == buf) {
-        if (buf->next) prevbuf = buf->next;
-        if (buf->prev) prevbuf = buf->prev;
-    }
-
+    
     if (buf->prev) {
         buf->prev->next = buf->next;
+    } else {
+        headbuf = buf->next; /* If we want the first buffer to be destroyed, we need to reset the head pointer. */
     }
     if (buf->next) {
         buf->next->prev = buf->prev;
@@ -718,6 +707,34 @@ void buffer_debug(struct Buffer *buf) {
 void buffer_goto_line(struct Buffer *buf, int line) {
     for (buf->point.line = buf->start_line; buf->point.line; buf->point.line = buf->point.line->next) {
         if (buf->point.line->y == line) break;
+    }
+}
+
+/* Find current {} level, then add that amount of tabs. */
+void buffer_auto_indent(struct Buffer *buf) {
+    struct Line *line;
+    int indent = 0;
+    for (line = buf->start_line; line != buf->point.line; line = line->next) {
+        int i;
+        for (i = 0; i < line->len; i++) {
+            if (line->str[i] == '{') indent++;
+            if (line->str[i] == '}') indent--;
+        }
+    }
+
+    int i;
+    for (i = 0; i < indent; i++) {
+        buffer_type_tab(buf);
+    }
+}
+
+void buffer_type_tab(struct Buffer *buf) {
+    if (curbuf->indent_mode == 0) {
+        line_type_string(buf->point.line, buf->point.pos, "    ");
+        buf->point.pos += 4;
+    } else {
+        line_type(buf->point.line, buf->point.pos, '\t');
+        buf->point.pos += 1;
     }
 }
 

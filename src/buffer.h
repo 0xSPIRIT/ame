@@ -66,6 +66,8 @@ void           buffer_reset_completion(struct Buffer *buf);
 void           buffer_kill(struct Buffer *buf);
 bool           buffer_is_scrolling(struct Buffer *buf);
 void           buffer_goto_line(struct Buffer *buf, int line);
+void           buffer_auto_indent(struct Buffer *buf);
+void           buffer_type_tab(struct Buffer *buf);
 
 void buffer_forward_word(struct Buffer *buf);
 void buffer_backward_word(struct Buffer *buf);
