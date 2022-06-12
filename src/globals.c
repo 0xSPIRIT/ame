@@ -8,3 +8,6 @@ int window_width = 900, window_height = 600;
 int font_w, font_h;
 
 double dt;
+
+const SDL_Color BG = {0, 0, 0, 255};
+const SDL_Color POINT = {255, 255, 255, 255};

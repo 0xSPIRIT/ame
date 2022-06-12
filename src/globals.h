@@ -13,4 +13,6 @@ extern int font_w, font_h;
 
 extern double dt; /* Difference in milliseconds between this frame and the last. */
 
+extern const SDL_Color BG, POINT;
+
 #endif /* GLOBALS_H_ */

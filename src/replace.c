@@ -8,13 +8,15 @@
 char find[1024] = {0};
 char replace[1024] = {0};
 
-void buffer_replace_matching(struct Buffer *buf, char *find, char *replace) {
+int buffer_replace_matching(struct Buffer *buf, char *find, char *replace, bool all) {
     struct Line *line;
 
     unsigned find_len = strlen(find);
     unsigned replace_len = strlen(replace);
     
-    if (!find_len) return;
+    int amt = 0;
+    
+    if (!find_len) return 0;
 
     for (line = buf->point.line; line; line = line->next) {
         int start = 0;
@@ -39,9 +41,14 @@ void buffer_replace_matching(struct Buffer *buf, char *find, char *replace) {
                 if (pos < -font_h-buf->scroll.y || pos > window_height-buf->scroll.y-font_h*2) {
                     buf->scroll.target_y = -font_h+(window_height/2 - font_h*2)-(3*buf->point.line->y + buf->point.line->y * font_h);
                 }
+                
+                amt++;
+                if (!all) return 1;
             } else {
                 start++;
             }
         }
     }
+    return amt;
 }
+

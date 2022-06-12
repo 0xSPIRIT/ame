@@ -116,7 +116,7 @@ void mark_draw(struct Mark *mark) {
     mark_swap_ends_if(mark);
     yoff = mark->start->line->y;
 
-    SDL_SetRenderDrawColor(renderer, 153, 211, 224, 255);
+    SDL_SetRenderDrawColor(renderer, 64, 85, 200, 255);
     for (line = mark->start->line; line != mark->end->line->next; line = line->next) {
         int x = 0, w = line->len;
 

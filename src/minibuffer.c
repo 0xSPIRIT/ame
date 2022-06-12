@@ -102,6 +102,16 @@ void minibuffer_handle_input(SDL_Event *event) {
                 break;
             }
             
+            case SDLK_q: {
+                if (!curbuf->is_singular && is_ctrl()) {
+                    prevbuf = curbuf;
+                    curbuf = minibuf;
+                    minibuf->singular_state = STATE_QUERY_FIND;
+                    strcpy(minibuf->start_line->pre_str, "(Query) Find: ");
+                }
+                break;
+            }
+            
             case SDLK_s: {
                 if (is_ctrl() && !is_shift() && !curbuf->is_singular) {
                     if (strlen(curbuf->filename) > 0) {
@@ -261,8 +271,70 @@ int minibuffer_execute() {
         case STATE_REPLACE: {
             if (strlen(command) >= 1024) return 0;
             strcpy(replace, command);
-            buffer_replace_matching(prevbuf, find, replace);
+            buffer_replace_matching(prevbuf, find, replace, true);
             break;
+        }
+        case STATE_QUERY_FIND: {
+            if (strlen(command) >= 1024) return 0;
+            strcpy(find, command);
+            minibuf->singular_state = STATE_QUERY_REPLACE;
+            strcpy(minibuf->start_line->pre_str, "(Query) Replace: ");
+            memset(minibuf->start_line->str, 0, minibuf->start_line->cap);
+            minibuf->start_line->len = 0;
+            minibuf->point.pos = 0;
+            return 0; /* Don't go to end of function, where it will reset. */
+        }
+        case STATE_QUERY_REPLACE: {
+            if (strlen(command) >= 1024) return 0;
+            strcpy(replace, command);
+            minibuf->singular_state = STATE_QUERY;
+
+            buffer_isearch_mark_matching(prevbuf, find); /* Mark the next one */
+/*            buffer_isearch_goto_matching(prevbuf, find); */
+            
+            char msg[3000] = {0};
+            sprintf(msg, "(Query) Replace %s with %s? (y/n): ", find, replace);
+            
+            strcpy(minibuf->start_line->pre_str, msg);
+            memset(minibuf->start_line->str, 0, minibuf->start_line->cap);
+            minibuf->start_line->len = 0;
+            minibuf->destructive = true;
+            line_type(minibuf->start_line, 0, 'y');
+            minibuf->point.pos = 1;
+            return 0; /* Don't go to end of function, where it will reset. */
+        }
+        case STATE_QUERY: {
+            int match = 0;
+            
+            if (0==strcmp(command, "y")) {
+                match = buffer_replace_matching(prevbuf, find, replace, false);
+            } else {
+                buffer_isearch_goto_matching(prevbuf, find);
+                match = 1; /* Setting this so it will still return. */
+            }
+            
+            buffer_isearch_mark_matching(prevbuf, find); /* Mark the next one */
+
+            memset(minibuf->start_line->str, 0, minibuf->start_line->cap);
+            minibuf->start_line->len = 0;
+            minibuf->point.pos = 0;
+
+            minibuf->destructive = true;
+            line_type(minibuf->start_line, 0, 'y');
+            minibuf->point.pos = 1;
+
+            if (!match) {
+                /* Destroy previous highlights upon exit */
+                struct Line *line;
+                for (line = prevbuf->point.line; line; line = line->next) {
+                    int i, c = line->hl_count;
+                    for (i = 0; i < c; i++)
+                        highlight_stop(&line->hls[i]);
+                }
+                break;
+            } else {
+                return 0;
+            }
         }
         case STATE_SWITCH_TO_BUFFER: {
             struct Buffer *buf = headbuf;

@@ -53,26 +53,25 @@ void buffer_deallocate(struct Buffer *buf) {
 }
 
 static void buffer_draw_point(struct Buffer *buf, bool is_active) {
-    int spacing = 3;
-
     int tab_offset = 0;
     int i;
+
     for (i = 0; i < buf->point.pos; i++) {
         if (buf->point.line->str[i] == '\t') tab_offset += font_w * (4-1); /* -1 to remove the offset that's already there. */
     }
-
+        
     const SDL_Rect dst = {
-        tab_offset + buf->x + buf->scroll.x + buf->point.pos * font_w + strlen(buf->point.line->pre_str) * font_w + spacing,
-        buf->y + buf->scroll.y + buf->point.line->y * font_h + spacing * buf->point.line->y,
+        tab_offset + buf->x + buf->scroll.x + buf->point.pos * font_w + strlen(buf->point.line->pre_str) * font_w + SPACING,
+        buf->y + buf->scroll.y + buf->point.line->y * font_h + SPACING * buf->point.line->y,
         font_w,
         font_h
     };
 
     if (is_active) {
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_SetRenderDrawColor(renderer, POINT.r, POINT.g, POINT.b, 255);
         SDL_RenderDrawRect(renderer, &dst);
     } else {
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 127);
+        SDL_SetRenderDrawColor(renderer, POINT.r, POINT.g, POINT.b, 127);
         SDL_RenderFillRect(renderer, &dst);
     }
 }
@@ -85,7 +84,7 @@ void buffer_draw(struct Buffer *buf) {
     /* For the minibuffer, draw a background so text won't be clipping through. */
     if (buf->is_singular) {
         SDL_Rect r = { buf->x, buf->y, window_width, font_h };
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_SetRenderDrawColor(renderer, BG.r, BG.g, BG.b, 255);
         SDL_RenderFillRect(renderer, &r);
     }
 
@@ -103,8 +102,7 @@ void buffer_draw(struct Buffer *buf) {
                     w - buf->scroll.x - 6, 
                     font_h
                 };
-                const int alpha = 255-240;
-                SDL_SetRenderDrawColor(renderer, 0, 0, 0, alpha);
+                SDL_SetRenderDrawColor(renderer, POINT.r, POINT.g, POINT.b, 40);
                 SDL_RenderFillRect(renderer, &r);
                 SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
             }
@@ -142,6 +140,7 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
             buf->point.pos = 0;
         }
         if (*(event->text.text) == ' ' && is_ctrl()) goto keydown;
+        if (*(event->text.text) == '}') buffer_remove_tab(buf);
 
         if (buf->mark->active) {
             mark_delete_text(buf->mark);
@@ -710,13 +709,21 @@ void buffer_goto_line(struct Buffer *buf, int line) {
     }
 }
 
-/* Find current {} level, then add that amount of tabs. */
+/* Find current {} level, then add that amount of tabs at current line. */
 void buffer_auto_indent(struct Buffer *buf) {
     struct Line *line;
-    int indent = 0;
+    int indent = 0, char_quote = 0, string_quote = 0;
     for (line = buf->start_line; line != buf->point.line; line = line->next) {
         int i;
         for (i = 0; i < line->len; i++) {
+            if (line->str[i] == '\'' && ((i > 0 && line->str[i-1] != '\\') || (i == 0))) {
+                if (!string_quote) char_quote = !char_quote;
+            } else if (line->str[i] == '\"' && ((i > 0 && line->str[i-1] != '\\') || (i == 0))) {
+                if (!char_quote) string_quote = !string_quote;
+            }
+            
+            if (char_quote || string_quote) continue;
+            
             if (line->str[i] == '{') indent++;
             if (line->str[i] == '}') indent--;
         }
@@ -729,12 +736,23 @@ void buffer_auto_indent(struct Buffer *buf) {
 }
 
 void buffer_type_tab(struct Buffer *buf) {
-    if (curbuf->indent_mode == 0) {
+    if (buf->indent_mode == 0) {
         line_type_string(buf->point.line, buf->point.pos, "    ");
         buf->point.pos += 4;
     } else {
         line_type(buf->point.line, buf->point.pos, '\t');
         buf->point.pos += 1;
+    }
+}
+
+void buffer_remove_tab(struct Buffer *buf) {
+    buf->point.pos = 0;
+    if (buf->indent_mode == 0) {
+        if (!string_begins_with(buf->point.line->str, "    ")) return;
+        line_delete_chars_range(buf->point.line, 0, 4);
+    } else {
+        if (buf->point.line->str[0] != '\t') return;
+        line_delete_char(buf->point.line, 0);
     }
 }
 
@@ -877,19 +895,17 @@ void line_delete_chars_range(struct Line *line, int start, int end) {
 void line_draw(struct Line *line, int yoff, int scroll_x, int scroll_y) {
     if (line->len == 0 && strlen(line->pre_str) == 0) return;
 
-    int spacing = 3;
-
     int pre_width = 0;
 
     if (strlen(line->pre_str) > 0) {
-        SDL_Surface *pre_surf = TTF_RenderText_Blended(font, line->pre_str, (SDL_Color){0, 0, 255, 255});
+        SDL_Surface *pre_surf = TTF_RenderText_Blended(font, line->pre_str, (SDL_Color){88, 98, 237, 255});
         SDL_Texture *pre_texture = SDL_CreateTextureFromSurface(renderer, pre_surf);
 
         pre_width = pre_surf->w;
 
         const SDL_Rect dst = (SDL_Rect){
-            line->buf->x + scroll_x + spacing,
-            line->buf->y + scroll_y + yoff * spacing + yoff * font_h,
+            line->buf->x + scroll_x + SPACING,
+            line->buf->y + scroll_y + yoff * SPACING + yoff * font_h,
             pre_surf->w, 
             pre_surf->h
         };
@@ -899,7 +915,7 @@ void line_draw(struct Line *line, int yoff, int scroll_x, int scroll_y) {
     }
 
     if (line->len > 0) {
-        SDL_Color col = (SDL_Color){0, 0, 0, 255};
+        SDL_Color col = (SDL_Color){255, 255, 255, 255};
         if (line->buf->destructive) {
             col.a = 127;
         }
@@ -919,8 +935,8 @@ void line_draw(struct Line *line, int yoff, int scroll_x, int scroll_y) {
         SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surf);
 
         const SDL_Rect dst = (SDL_Rect){
-            line->buf->x + scroll_x + spacing + pre_width, 
-            line->buf->y + scroll_y + yoff * spacing + yoff * font_h,
+            line->buf->x + scroll_x + SPACING + pre_width, 
+            line->buf->y + scroll_y + yoff * SPACING + yoff * font_h,
             surf->w, 
             surf->h
         };

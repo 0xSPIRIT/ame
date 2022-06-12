@@ -12,7 +12,7 @@ void modeline_draw_rect() {
         window_width, font_h + 1
     };
 
-    SDL_SetRenderDrawColor(renderer, 240, 240, 240, 255);
+    SDL_SetRenderDrawColor(renderer, 255-240, 255-240, 255-240, 255);
     SDL_RenderFillRect(renderer, &mode_rect);
     SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255);
     SDL_RenderDrawRect(renderer, &outline_rect);
@@ -30,7 +30,7 @@ void buffer_modeline_draw(struct Buffer *buf) {
     strcat(text, "     ");
     strcat(text, line_string);
 
-    SDL_Surface *surf = TTF_RenderText_Blended(font, text, (SDL_Color){0, 0, 0, 255});
+    SDL_Surface *surf = TTF_RenderText_Blended(font, text, (SDL_Color){255, 255, 255, 255});
     SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surf);
     const SDL_Rect dst = (SDL_Rect){
         buf->x + 6, window_height - font_h*2,

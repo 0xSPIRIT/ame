@@ -11,7 +11,7 @@ void buffer_isearch_goto_matching(struct Buffer *buf, char *str) {
 
     strcpy(buf->search->str, str);
 
-    /* Destroy previous marks so we can update it properly. */
+    /* Destroy previous highlights so we can update it properly. */
     for (line = buf->point.line; line; line = line->next) {
         int i, c = line->hl_count;
         for (i = 0; i < c; i++)

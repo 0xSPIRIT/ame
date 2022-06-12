@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
             is_event = SDL_PollEvent(&event);
         }
         if (did_do_event || is_scroll || animated_highlights_active) {
-            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+            SDL_SetRenderDrawColor(renderer, BG.r, BG.g, BG.b, 255);
             SDL_RenderClear(renderer);
 
             char cwd[256] = {0};

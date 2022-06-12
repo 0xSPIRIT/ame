@@ -32,7 +32,7 @@ void buffers_draw() {
     if (panel_left) {
         SDL_SetRenderTarget(renderer, left);
 
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_SetRenderDrawColor(renderer, BG.r, BG.b, BG.b, 255);
         SDL_RenderClear(renderer);
 
         panel_left->x = 0;
@@ -47,7 +47,7 @@ void buffers_draw() {
     if (panel_right) {
         SDL_SetRenderTarget(renderer, right);
 
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_SetRenderDrawColor(renderer, BG.r, BG.g, BG.b, 255);
         SDL_RenderClear(renderer);
 
         panel_right->x = 0;
@@ -68,7 +68,7 @@ void buffers_draw() {
         SDL_RenderCopy(renderer, right, NULL, &right_dst);
 
     if (panel_count() == 2) {
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
         SDL_RenderDrawLine(renderer, window_width/2, 0, window_width/2, window_height - font_h*2);
     }
 

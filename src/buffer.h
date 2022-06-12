@@ -2,6 +2,7 @@
 #define BUFFER_H_
 
 #define BUF_NAME_LEN 256
+#define SPACING 3
 
 #include <stdbool.h>
 #include <SDL2/SDL.h>
@@ -68,6 +69,7 @@ bool           buffer_is_scrolling(struct Buffer *buf);
 void           buffer_goto_line(struct Buffer *buf, int line);
 void           buffer_auto_indent(struct Buffer *buf);
 void           buffer_type_tab(struct Buffer *buf);
+void           buffer_remove_tab(struct Buffer *buf);
 
 void buffer_forward_word(struct Buffer *buf);
 void buffer_backward_word(struct Buffer *buf);
