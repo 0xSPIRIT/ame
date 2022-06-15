@@ -7,13 +7,8 @@ Features:
 - Compilation / Running
 
 Bugs:
+x Huge memory leak.
 - On kill buffer, the current buffer does not switch. (Ctrl+W)
 - Ctrl+tab doesn't really work properly.
-- Make performance better with the indentation function- don't let it go
-  through the entire file if it's a large thousand-line file. Maybe do up to
-  a certain amount.
 - Streamline x_scroll and y_scroll switching- make a function or something.
 - Remove line spaces / make it not hardcoded.
-- Random extra letters appearing when typing, especially after autocomplete;
-    Possibly some kind of leak or something...?
-

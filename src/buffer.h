@@ -22,6 +22,11 @@ struct ScrollBar {
     int target_x, target_y;
 };
 
+/* A view into a buffer. */
+struct View {
+    
+};
+
 struct Buffer {
     struct Buffer *prev, *next; /* Linked list of all the buffers. */
 

@@ -36,13 +36,13 @@ void *_alloc(size_t num, size_t size, char *file, int line) {
     return ptr;
 }
 
-int get_leaked_allocations() {
-    return num_allocs;
-}
-
 void _dealloc(void *ptr, char *file, int line) {
     free(ptr);
     num_allocs--;
+}
+
+int get_leaked_allocations() {
+    return num_allocs;
 }
 
 void remove_directory(char *dst, char *src) {

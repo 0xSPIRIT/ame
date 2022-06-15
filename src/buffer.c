@@ -958,6 +958,8 @@ void line_draw(struct Line *line, int yoff, int scroll_x, int scroll_y) {
         SDL_RenderCopy(renderer, texture, NULL, &dst);
         SDL_FreeSurface(surf);
         SDL_DestroyTexture(texture);
+
+        dealloc(draw_string);
     }
 }
 
