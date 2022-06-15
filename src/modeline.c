@@ -22,7 +22,7 @@ void buffer_modeline_draw(struct Buffer *buf) {
     char text[512] = {0};
     char line_string[64];
 
-    sprintf(line_string, "L%d/%d", buf->point.line->y+1, buf->line_count);
+    sprintf(line_string, "L%d/%d", buf->views[buf->curview].point.line->y+1, buf->line_count);
 
     strcat(text, buf->name);
     if (buf->edited)

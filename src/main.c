@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
         int is_event = SDL_PollEvent(&event);
         int did_do_event = is_event;
         int is_scroll = buffer_is_scrolling(curbuf);
-
+        
         while (is_event) {
             if (event.type == SDL_QUIT) {
                 running = false;
@@ -74,12 +74,8 @@ int main(int argc, char **argv) {
             }
 
             buffer_handle_input(curbuf, &event);
+            
             minibuffer_handle_input(&event);
-
-            curbuf->scroll.y = curbuf->scroll.target_y;
-            curbuf->scroll.x = curbuf->scroll.target_x;
-            prevbuf->scroll.y = prevbuf->scroll.target_y;
-            prevbuf->scroll.x = prevbuf->scroll.target_x;
 
             is_event = SDL_PollEvent(&event);
         }

@@ -24,9 +24,13 @@ struct ScrollBar {
 
 /* A view into a buffer. */
 struct View {
-    
+    struct Point point;      /* Location of the point (cursor) */
+    struct Isearch *search;  /* Incremental search data. */
+    struct ScrollBar scroll; /* View position. */
+    struct Mark *mark;       /* Area of selection (called the mark) */
 };
 
+/* Text buffer, containing text data, and useful metadata about the buffer. */
 struct Buffer {
     struct Buffer *prev, *next; /* Linked list of all the buffers. */
 
@@ -37,12 +41,13 @@ struct Buffer {
 
     int x, y;                /* Offsets for the entire buffer. */
 
+    struct View views[2];    /* Different views for eg. when viewing the same buffer in two panels. */
+    int curview;             /* Current view. If one buffer in both panels this is set in between drawing. */
+    int view_count;          /* Max number of views. */
+        
     struct Line *start_line; /* Doubly linked list of lines */
     int line_count;
-    struct Point point;      /* Location of the point (cursor) */
     bool edited;             /* Flag to show if buffer is edited */
-    struct ScrollBar scroll;
-    struct Mark *mark;       /* Area of selection (called the mark) */
 
     bool is_completing;            /* Did we just hit tab to complete? Used to cycle through completions. */
     int completion;                /* Amount of cycles into the completion. */
@@ -53,13 +58,12 @@ struct Buffer {
                                 and something important happens at RETURN. */
     int singular_state;      /* The state of the one-lined special buffer (minibuffer.) */
     int (*on_return)();      /* Function that executes once at RETURN if is_singular=true */
-
-    struct Isearch *search;  /* Incremental search data. */
 };
 
 struct Buffer *buffer_allocate(char name[BUF_NAME_LEN]);
 void           buffer_deallocate(struct Buffer *buf);
-void           buffer_draw(struct Buffer *buf);
+void           buffer_draw(struct Buffer *buf, int real_view);
+void           buffer_limit_point(struct Buffer *buf);
 void           buffer_handle_input(struct Buffer *buf, SDL_Event *event);
 void           buffer_newline(struct Buffer *buf);
 void           buffer_paste_text(struct Buffer *buf);
@@ -75,6 +79,11 @@ void           buffer_goto_line(struct Buffer *buf, int line);
 void           buffer_auto_indent(struct Buffer *buf);
 void           buffer_type_tab(struct Buffer *buf);
 void           buffer_remove_tab(struct Buffer *buf);
+
+struct Point     *buffer_curr_point(struct Buffer *buf);
+struct Mark      *buffer_curr_mark(struct Buffer *buf);
+struct ScrollBar *buffer_curr_scroll(struct Buffer *buf);
+struct Isearch   *buffer_curr_search(struct Buffer *buf);
 
 void buffer_forward_word(struct Buffer *buf);
 void buffer_backward_word(struct Buffer *buf);

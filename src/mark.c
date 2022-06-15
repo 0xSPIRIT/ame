@@ -22,18 +22,21 @@ void mark_set(struct Mark *mark, bool shift_select) {
     if (mark->end) dealloc(mark->end);
     mark->start = alloc(1, sizeof(struct Point));
     mark->end = alloc(1, sizeof(struct Point));
-    memcpy(mark->start, &mark->buf->point, sizeof(mark->buf->point));
-    memcpy(mark->end, &mark->buf->point, sizeof(mark->buf->point));
+    
+    struct Point *buf_point = &mark->buf->views[mark->buf->curview].point;
+    memcpy(mark->start, buf_point, sizeof(*buf_point));
+    memcpy(mark->end, buf_point, sizeof(*buf_point));
     mark->active = true;
     mark->shift_select = shift_select;
 }
 
 void mark_update(struct Mark *mark) {
+    struct Point *buf_point = &mark->buf->views[mark->buf->curview].point;
     if (mark->active) {
         if (mark->swapped)
-            memcpy(mark->start, &mark->buf->point, sizeof(mark->buf->point));
+            memcpy(mark->start, buf_point, sizeof(*buf_point));
         else
-            memcpy(mark->end, &mark->buf->point, sizeof(mark->buf->point));
+            memcpy(mark->end, buf_point, sizeof(*buf_point));
     }
 }
 
@@ -87,10 +90,11 @@ int mark_get_length(struct Mark *mark) {
 }
 
 void mark_delete_text(struct Mark *mark) {
-    mark->buf->point = *mark->end;
+    struct Point *buf_point = &mark->buf->views[mark->buf->curview].point;
+    *buf_point = *mark->end;
     while (true) {
         buffer_backspace(mark->buf);
-        if (mark->buf->point.line == mark->start->line && mark->buf->point.pos == mark->start->pos) {
+        if (buf_point->line == mark->start->line && buf_point->pos == mark->start->pos) {
             break;
         }
     }
@@ -110,6 +114,7 @@ void mark_cut_text(struct Mark *mark) {
 void mark_draw(struct Mark *mark) {
     struct Line *line;
     int yoff;
+    struct ScrollBar *scroll = &mark->buf->views[mark->buf->curview].scroll;
     
     if (!mark->start->line || !mark->end->line) return;
 
@@ -121,7 +126,7 @@ void mark_draw(struct Mark *mark) {
         int x = 0, w = line->len;
 
         int pos = yoff*3 + yoff*font_h;
-        if (pos < -font_h - mark->buf->scroll.y || pos >= window_height - mark->buf->scroll.y) { /* Culling */
+        if (pos < -font_h - scroll->y || pos >= window_height - scroll->y) { /* Culling */
             yoff++;
             continue;
         }
@@ -153,8 +158,8 @@ void mark_draw(struct Mark *mark) {
         }
 
         SDL_Rect selection = {
-            tab_offset + mark->buf->x + mark->buf->scroll.x + 3 + x * font_w, 
-            mark->buf->y + mark->buf->scroll.y + pos-3,
+            tab_offset + mark->buf->x + scroll->x + 3 + x * font_w, 
+            mark->buf->y + scroll->y + pos-3,
             tab_width_offset + w * font_w, font_h+6
         };
         SDL_RenderFillRect(renderer, &selection);

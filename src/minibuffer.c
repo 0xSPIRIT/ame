@@ -25,8 +25,11 @@ void minibuffer_deallocate() {
 }
 
 void minibuffer_handle_input(SDL_Event *event) {
+    struct ScrollBar *minibuf_scroll = &minibuf->views[0].scroll;
+    struct Point *minibuf_point = &minibuf->views[0].point;
+    
     minibuf->y = window_height - font_h;
-    minibuf->scroll.target_y = minibuf->scroll.y = 0;
+    minibuf_scroll->target_y = minibuf_scroll->y = 0;
 
     if (minibuf->singular_state == STATE_ISEARCH) {
         buffer_isearch_mark_matching(prevbuf, minibuf->start_line->str);
@@ -58,7 +61,7 @@ void minibuffer_handle_input(SDL_Event *event) {
                     char cwd[256] = {0};
                     get_cwd(cwd);
                     line_type_string(minibuf->start_line, 0, cwd);
-                    minibuf->point.pos = minibuf->start_line->len;
+                    minibuf_point->pos = minibuf->start_line->len;
                 }
                 break;
             }
@@ -69,17 +72,17 @@ void minibuffer_handle_input(SDL_Event *event) {
                         curbuf = minibuf;
                         minibuf->singular_state = STATE_ISEARCH;
                         strcpy(minibuf->start_line->pre_str, "Isearch: ");
-                        if (strlen(prevbuf->search->str)) {
-                            line_type_string(minibuf->start_line, 0, prevbuf->search->str);
+                        if (strlen(prevbuf->views[prevbuf->curview].search->str)) {
+                            line_type_string(minibuf->start_line, 0, prevbuf->views[prevbuf->curview].search->str);
                             minibuf->destructive = true;
                         }
-                        minibuf->point.pos = minibuf->start_line->len;
+                        minibuf_point->pos = minibuf->start_line->len;
                     } else {
                         /* Go to the first match, then move one position ahead if possible, then mark the new matches. */
                         buffer_isearch_goto_matching(prevbuf, minibuf->start_line->str);
-                        prevbuf->point.pos++;
-                        if (prevbuf->point.pos >= prevbuf->point.line->len && prevbuf->point.line->next) {
-                            prevbuf->point.line = prevbuf->point.line->next;
+                        prevbuf->views[prevbuf->curview].point.pos++;
+                        if (prevbuf->views[prevbuf->curview].point.pos >= prevbuf->views[prevbuf->curview].point.line->len && prevbuf->views[prevbuf->curview].point.line->next) {
+                            prevbuf->views[prevbuf->curview].point.line = prevbuf->views[prevbuf->curview].point.line->next;
                         }
                         buffer_isearch_mark_matching(prevbuf, minibuf->start_line->str);
                     }
@@ -97,6 +100,7 @@ void minibuffer_handle_input(SDL_Event *event) {
                     } else if (is_alt() && (!panel_left || !panel_right)) {
                         if (curbuf == panel_left) panel_right = curbuf;
                         else if (curbuf == panel_right) panel_left = curbuf;
+                        panel_left->curview = 0;
                     }
                 }
                 break;
@@ -130,7 +134,7 @@ void minibuffer_handle_input(SDL_Event *event) {
                     char cwd[256] = {0};
                     get_cwd(cwd);
                     line_type_string(minibuf->start_line, 0, cwd);
-                    minibuf->point.pos = minibuf->start_line->len;
+                    minibuf_point->pos = minibuf->start_line->len;
                 }
                 break;
             }
@@ -162,22 +166,31 @@ void minibuffer_handle_input(SDL_Event *event) {
                         minibuf->singular_state = STATE_KILL_CURRENT_BUFFER;
                         strcpy(minibuf->start_line->pre_str, "Discard changes and kill buffer? (y/n): ");
                     } else {
-                        struct Buffer *buf = curbuf;
+                        struct Buffer *new, *buf = curbuf;
+                        if (curbuf->prev) {
+                            new = curbuf->prev;
+                        } else if (curbuf->next) {
+                            new = curbuf->next;
+                        } else {
+                            break;
+                        }
+                        
+                        if (panel_left == buf) panel_left = new;
+                        if (panel_right == buf) panel_right = new;
                         buffer_kill(curbuf);
-                        if (panel_left == buf) panel_left = curbuf;
-                        if (panel_right == buf) panel_right = curbuf;
+                        curbuf = new;
                     }
                 }
                 break;
             }
             case SDLK_g: {
                 if (is_ctrl()) {
-                    mark_unset(minibuf->mark);
+                    mark_unset(minibuf->views[minibuf->curview].mark);
                     minibuffer_return();
 
                     struct Line *line;
                     /* Destroy previous highlights. */
-                    for (line = curbuf->point.line; line; line = line->next) {
+                    for (line = curbuf->views[curbuf->curview].point.line; line; line = line->next) {
                         int i, c = line->hl_count;
                         for (i = 0; i < c; i++)
                             highlight_stop(&line->hls[i]);
@@ -210,6 +223,7 @@ void minibuffer_handle_input(SDL_Event *event) {
 /* Take the command from minibuffer, split it by space, then parse. */
 int minibuffer_execute() {
     char *command = minibuf->start_line->str;
+    struct Point *minibuf_point = &minibuf->views[0].point;
 
     /* NOTE: Curbuf is the minibuf so we must use prevbuf to get the real main buffer. */
     switch (minibuf->singular_state) {
@@ -265,7 +279,7 @@ int minibuffer_execute() {
             strcpy(minibuf->start_line->pre_str, "Replace: ");
             memset(minibuf->start_line->str, 0, minibuf->start_line->cap);
             minibuf->start_line->len = 0;
-            minibuf->point.pos = 0;
+            minibuf_point->pos = 0;
             return 0; /* Don't go to end of function, where it will reset. */
         }
         case STATE_REPLACE: {
@@ -281,7 +295,7 @@ int minibuffer_execute() {
             strcpy(minibuf->start_line->pre_str, "(Query) Replace: ");
             memset(minibuf->start_line->str, 0, minibuf->start_line->cap);
             minibuf->start_line->len = 0;
-            minibuf->point.pos = 0;
+            minibuf_point->pos = 0;
             return 0; /* Don't go to end of function, where it will reset. */
         }
         case STATE_QUERY_REPLACE: {
@@ -300,7 +314,7 @@ int minibuffer_execute() {
             minibuf->start_line->len = 0;
             minibuf->destructive = true;
             line_type(minibuf->start_line, 0, 'y');
-            minibuf->point.pos = 1;
+            minibuf_point->pos = 1;
             return 0; /* Don't go to end of function, where it will reset. */
         }
         case STATE_QUERY: {
@@ -317,16 +331,16 @@ int minibuffer_execute() {
 
             memset(minibuf->start_line->str, 0, minibuf->start_line->cap);
             minibuf->start_line->len = 0;
-            minibuf->point.pos = 0;
+            minibuf_point->pos = 0;
 
             minibuf->destructive = true;
             line_type(minibuf->start_line, 0, 'y');
-            minibuf->point.pos = 1;
+            minibuf_point->pos = 1;
 
             if (!match) {
                 /* Destroy previous highlights upon exit */
                 struct Line *line;
-                for (line = prevbuf->point.line; line; line = line->next) {
+                for (line = prevbuf->views[prevbuf->curview].point.line; line; line = line->next) {
                     int i, c = line->hl_count;
                     for (i = 0; i < c; i++)
                         highlight_stop(&line->hls[i]);
@@ -378,9 +392,9 @@ int minibuffer_execute() {
             int line = atoi(curbuf->start_line->str) - 1;
             if (line < 0) line = 0;
             buffer_goto_line(prevbuf, line);
-            int pos = prevbuf->point.line->y*3 + prevbuf->point.line->y*font_h;
-            if (pos < -font_h-prevbuf->scroll.y || pos > window_height-prevbuf->scroll.y-font_h*2) {
-                prevbuf->scroll.target_y = -font_h+(window_height-font_h*2)-(3*prevbuf->point.line->y + prevbuf->point.line->y * font_h);
+            int pos = prevbuf->views[prevbuf->curview].point.line->y*3 + prevbuf->views[prevbuf->curview].point.line->y*font_h;
+            if (pos < -font_h-prevbuf->views[prevbuf->curview].scroll.y || pos > window_height-prevbuf->views[prevbuf->curview].scroll.y-font_h*2) {
+                prevbuf->views[prevbuf->curview].scroll.target_y = -font_h+(window_height-font_h*2)-(3*prevbuf->views[prevbuf->curview].point.line->y + prevbuf->views[prevbuf->curview].point.line->y * font_h);
             }
             break;
         }
@@ -405,14 +419,17 @@ void minibuffer_return() {
 }
 
 void minibuffer_reset() {
+    struct Point *minibuf_point = &minibuf->views[0].point;
     memset(minibuf->start_line->str, 0, minibuf->start_line->cap);
     minibuf->start_line->len = 0;
-    minibuf->point.pos = 0;
+    minibuf_point->pos = 0;
     memset(minibuf->start_line->pre_str, 0, 255);
 }
 
 void minibuffer_attempt_autocomplete(int direction) {
     char *str = minibuf->start_line->str;
+
+    struct Point *minibuf_point = &minibuf->views[0].point;
 
     char possibilities[MAX_COMPLETION][256];
     int i = 0;
@@ -470,7 +487,7 @@ void minibuffer_attempt_autocomplete(int direction) {
             strcat(new, dirname);
             strcat(new, possibilities[minibuf->completion]);
             line_type_string(minibuf->start_line, 0, new);
-            minibuf->point.pos = minibuf->start_line->len;
+            minibuf_point->pos = minibuf->start_line->len;
 
             break;
         }
@@ -513,7 +530,7 @@ void minibuffer_attempt_autocomplete(int direction) {
             memset(minibuf->start_line->str, 0, minibuf->start_line->cap);
             minibuf->start_line->len = 0;
             line_type_string(minibuf->start_line, 0, possibilities[minibuf->completion]);
-            minibuf->point.pos = minibuf->start_line->len;
+            minibuf_point->pos = minibuf->start_line->len;
             
             break;
         }

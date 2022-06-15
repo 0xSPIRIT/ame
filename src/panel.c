@@ -9,6 +9,12 @@ struct Buffer *panel_left  = NULL,
               *panel_right = NULL;
 
 void panel_swap_focus() {
+    if (panel_left == panel_right) {
+        curbuf->curview = !curbuf->curview;
+        buffer_limit_point(curbuf);
+        return;
+    }
+    
     if (curbuf == panel_left && panel_right) {
         curbuf = panel_right;
     } else if (curbuf == panel_right && panel_left) {
@@ -30,21 +36,32 @@ void buffers_draw() {
 
     /* Draw the main buffer(s), and the minibuffer. */
     if (panel_left) {
+        int temp = panel_left->curview;
+        if (panel_left == panel_right) {
+            panel_left->curview = 0;
+        }
         SDL_SetRenderTarget(renderer, left);
 
         SDL_SetRenderDrawColor(renderer, BG.r, BG.b, BG.b, 255);
         SDL_RenderClear(renderer);
 
         panel_left->x = 0;
-        buffer_draw(panel_left);
+        buffer_draw(panel_left, temp);
 
         if (panel_right) {
             const SDL_Rect r = { window_width/2, 0, window_width, window_height };
             SDL_SetRenderDrawColor(renderer, 255, 255, 255, 0);
             SDL_RenderFillRect(renderer, &r);
         }
+        if (panel_left == panel_right) {
+            panel_left->curview = temp;
+        }
     }
     if (panel_right) {
+        int temp = panel_right->curview;
+        if (panel_left == panel_right) {
+            panel_right->curview = 1;
+        }
         SDL_SetRenderTarget(renderer, right);
 
         SDL_SetRenderDrawColor(renderer, BG.r, BG.g, BG.b, 255);
@@ -52,7 +69,10 @@ void buffers_draw() {
 
         panel_right->x = 0;
 
-        buffer_draw(panel_right);
+        buffer_draw(panel_right, temp);
+        if (panel_left == panel_right) {
+            panel_right->curview = temp;
+        }
     }
 
     SDL_SetRenderTarget(renderer, NULL);
@@ -83,7 +103,7 @@ void buffers_draw() {
         buffer_modeline_draw(panel_right);
     }
 
-    buffer_draw(minibuf);
+    buffer_draw(minibuf, 0);
 
     if (left)
         SDL_DestroyTexture(left);

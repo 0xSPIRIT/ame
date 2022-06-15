@@ -1,14 +1,12 @@
 Features to implement:
 
 Features:
-- Make panels with the same buffer differ.
 - Mouse support
 - Undo/Redo
 - Compilation / Running
 
 Bugs:
-x Huge memory leak.
-- On kill buffer, the current buffer does not switch. (Ctrl+W)
+- Fix crashes and performance.
 - Ctrl+tab doesn't really work properly.
 - Streamline x_scroll and y_scroll switching- make a function or something.
 - Remove line spaces / make it not hardcoded.
