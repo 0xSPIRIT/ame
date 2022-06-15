@@ -48,8 +48,8 @@ void buffer_deallocate(struct Buffer *buf) {
         line_deallocate(line);
     }
 
-    free(buf->search);
-    free(buf);
+    dealloc(buf->search);
+    dealloc(buf);
 }
 
 static void buffer_draw_point(struct Buffer *buf, bool is_active) {
@@ -140,7 +140,7 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
             buf->point.pos = 0;
         }
         if (*(event->text.text) == ' ' && is_ctrl()) goto keydown;
-        if (*(event->text.text) == '}') buffer_remove_tab(buf);
+        if (*(event->text.text) == '}' && line_is_empty(buf->point.line)) buffer_remove_tab(buf);
 
         if (buf->mark->active) {
             mark_delete_text(buf->mark);
@@ -431,7 +431,7 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                 if (is_ctrl() && buf->mark->active) {
                     char *text = mark_get_text(buf->mark);
                     SDL_SetClipboardText(text);
-                    free(text);
+                    dealloc(text);
                     mark_unset(buf->mark);
                 }
                 break;
@@ -712,10 +712,21 @@ void buffer_goto_line(struct Buffer *buf, int line) {
 /* Find current {} level, then add that amount of tabs at current line. */
 void buffer_auto_indent(struct Buffer *buf) {
     struct Line *line;
-    int indent = 0, char_quote = 0, string_quote = 0;
+    int indent = 0,
+        char_quote = 0,
+        string_quote = 0, 
+        multi_comment = 0, 
+        single_comment = 0;
+    
     for (line = buf->start_line; line != buf->point.line; line = line->next) {
         int i;
         for (i = 0; i < line->len; i++) {
+            if (line->str[i] == '/' && i < line->len-1 && line->str[i+1] == '*') multi_comment = 1;
+            if (line->str[i] == '*' && i < line->len-1 && line->str[i+1] == '/') multi_comment = 0;
+            if (line->str[i] == '/' && i < line->len-1 && line->str[i+1] == '/') single_comment = 1;
+                
+            if (multi_comment || single_comment) continue;
+            
             if (line->str[i] == '\'' && ((i > 0 && line->str[i-1] != '\\') || (i == 0))) {
                 if (!string_quote) char_quote = !char_quote;
             } else if (line->str[i] == '\"' && ((i > 0 && line->str[i-1] != '\\') || (i == 0))) {
@@ -727,6 +738,7 @@ void buffer_auto_indent(struct Buffer *buf) {
             if (line->str[i] == '{') indent++;
             if (line->str[i] == '}') indent--;
         }
+        single_comment = 0;
     }
 
     int i;
@@ -746,17 +758,20 @@ void buffer_type_tab(struct Buffer *buf) {
 }
 
 void buffer_remove_tab(struct Buffer *buf) {
+    int temp_pos = buf->point.pos;
     buf->point.pos = 0;
     if (buf->indent_mode == 0) {
         if (!string_begins_with(buf->point.line->str, "    ")) return;
         line_delete_chars_range(buf->point.line, 0, 4);
+        buf->point.pos = temp_pos-4;
     } else {
         if (buf->point.line->str[0] != '\t') return;
         line_delete_char(buf->point.line, 0);
+        buf->point.pos = temp_pos-1;
     }
 }
 
-static const char breakchars[] = " (){}[];\\\'\":/?,.<>=-_+";
+static const char breakchars[] = " (){}[];\\\'\":/?,.<>=-_+*";
 
 static bool is_break(char c) {
     unsigned i;
@@ -817,8 +832,8 @@ struct Line *line_allocate(struct Buffer *buf) {
 }
 
 void line_deallocate(struct Line *line) {
-    free(line->str);
-    free(line);
+    dealloc(line->str);
+    dealloc(line);
 }
 
 void line_remove(struct Line *line) {

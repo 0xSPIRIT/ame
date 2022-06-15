@@ -13,13 +13,13 @@ struct Mark *mark_allocate(struct Buffer *buf) {
 }
 
 void mark_deallocate(struct Mark *mark) {
-    free(mark->start);
-    free(mark);
+    dealloc(mark->start);
+    dealloc(mark);
 }
 
 void mark_set(struct Mark *mark, bool shift_select) {
-    if (mark->start) free(mark->start);
-    if (mark->end) free(mark->end);
+    if (mark->start) dealloc(mark->start);
+    if (mark->end) dealloc(mark->end);
     mark->start = alloc(1, sizeof(struct Point));
     mark->end = alloc(1, sizeof(struct Point));
     memcpy(mark->start, &mark->buf->point, sizeof(mark->buf->point));
@@ -38,8 +38,8 @@ void mark_update(struct Mark *mark) {
 }
 
 void mark_unset(struct Mark *mark) {
-    if (mark->start) free(mark->start);
-    if (mark->end) free(mark->end);
+    if (mark->start) dealloc(mark->start);
+    if (mark->end) dealloc(mark->end);
     mark->start = mark->end = NULL;
     mark->active = false;
     mark->shift_select = false;
@@ -104,7 +104,7 @@ void mark_cut_text(struct Mark *mark) {
     /* Delete the text in the selected region. */
     mark_delete_text(mark);
 
-    free(text);
+    dealloc(text);
 }
 
 void mark_draw(struct Mark *mark) {

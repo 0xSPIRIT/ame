@@ -1,12 +1,9 @@
 Features to implement:
 
 Features:
-x Dark theme by default.
-- Make } return tab indent by one.
-x Query replace
 - Make panels with the same buffer differ.
-- Undo/Redo
 - Mouse support
+- Undo/Redo
 - Compilation / Running
 
 Bugs:

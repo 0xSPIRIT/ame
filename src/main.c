@@ -15,7 +15,7 @@
 int main(int argc, char **argv) {
     bool running = true;
     char buffer_name[256], file_name[256];
-    
+
     if (argc == 2) {
         strcpy(file_name, argv[1]);
         remove_directory(buffer_name, file_name);
@@ -132,6 +132,8 @@ int main(int argc, char **argv) {
 
     SDL_Quit();
     TTF_Quit();
+    
+    printf("Leaked allocations: %d\n", get_leaked_allocations());
 
     return 0;
 }
