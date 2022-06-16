@@ -6,7 +6,8 @@ Features:
 - Compilation / Running
 
 Bugs:
-- Fix crashes and performance.
+- ctrl+w sometimes doesn't work????
+- Fix crashes.
+- Performance (especially with two panels)- lots of latency.
 - Ctrl+tab doesn't really work properly.
 - Streamline x_scroll and y_scroll switching- make a function or something.
-- Remove line spaces / make it not hardcoded.

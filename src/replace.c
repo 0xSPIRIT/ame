@@ -39,9 +39,9 @@ int buffer_replace_matching(struct Buffer *buf, char *find, char *replace, bool 
                     
                 highlight_set(&line->hls[line->hl_count], line, (SDL_Color){0, 64, 127, 255}, point->pos, replace_len, true);
     
-                int pos = point->line->y*3 + point->line->y*font_h;
+                int pos = point->line->y*SPACING + point->line->y*font_h;
                 if (pos < -font_h-buf->views[buf->curview].scroll.y || pos > window_height-buf->views[buf->curview].scroll.y-font_h*2) {
-                    buf->views[buf->curview].scroll.target_y = -font_h+(window_height/2 - font_h*2)-(3*point->line->y + point->line->y * font_h);
+                    buf->views[buf->curview].scroll.target_y = -font_h+(window_height/2 - font_h*2)-(SPACING*point->line->y + point->line->y * font_h);
                 }
                 
                 amt++;

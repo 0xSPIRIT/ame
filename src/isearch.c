@@ -90,9 +90,9 @@ void buffer_isearch_mark_matching(struct Buffer *buf, char *str) {
                     first = false;
     
                     /* If the first one is offscreen, center the screen onto it. */
-                    int pos = line->y*3 + line->y*font_h;
+                    int pos = line->y*SPACING + line->y*font_h;
                     if (pos < -font_h-scroll->y || pos > window_height-scroll->y-font_h*2) {
-                        scroll->target_y = -font_h+(window_height/2 - font_h*2)-(3*line->y + line->y * font_h);
+                        scroll->target_y = -font_h+(window_height/2 - font_h*2)-(SPACING*line->y + line->y * font_h);
                     }
                 } else {
                     col = (SDL_Color){0, 127, 255, 255};

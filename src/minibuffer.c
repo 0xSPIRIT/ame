@@ -15,7 +15,7 @@ struct Buffer *minibuf;
 void minibuffer_allocate() {
     minibuf = buffer_allocate("*minibuffer*");
     minibuf->x = 0;
-    minibuf->y = window_height - font_h;
+    minibuf->y = window_height - font_h - SPACING;
     minibuf->is_singular = true;
     minibuf->on_return = minibuffer_execute;
 }
@@ -392,9 +392,9 @@ int minibuffer_execute() {
             int line = atoi(curbuf->start_line->str) - 1;
             if (line < 0) line = 0;
             buffer_goto_line(prevbuf, line);
-            int pos = prevbuf->views[prevbuf->curview].point.line->y*3 + prevbuf->views[prevbuf->curview].point.line->y*font_h;
+            int pos = prevbuf->views[prevbuf->curview].point.line->y*SPACING + prevbuf->views[prevbuf->curview].point.line->y*font_h;
             if (pos < -font_h-prevbuf->views[prevbuf->curview].scroll.y || pos > window_height-prevbuf->views[prevbuf->curview].scroll.y-font_h*2) {
-                prevbuf->views[prevbuf->curview].scroll.target_y = -font_h+(window_height-font_h*2)-(3*prevbuf->views[prevbuf->curview].point.line->y + prevbuf->views[prevbuf->curview].point.line->y * font_h);
+                prevbuf->views[prevbuf->curview].scroll.target_y = -font_h+(window_height-font_h*2)-(SPACING*prevbuf->views[prevbuf->curview].point.line->y + prevbuf->views[prevbuf->curview].point.line->y * font_h);
             }
             break;
         }

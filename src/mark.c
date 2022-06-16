@@ -125,7 +125,7 @@ void mark_draw(struct Mark *mark) {
     for (line = mark->start->line; line != mark->end->line->next; line = line->next) {
         int x = 0, w = line->len;
 
-        int pos = yoff*3 + yoff*font_h;
+        int pos = yoff*SPACING + yoff*font_h;
         if (pos < -font_h - scroll->y || pos >= window_height - scroll->y) { /* Culling */
             yoff++;
             continue;
@@ -158,9 +158,9 @@ void mark_draw(struct Mark *mark) {
         }
 
         SDL_Rect selection = {
-            tab_offset + mark->buf->x + scroll->x + 3 + x * font_w, 
-            mark->buf->y + scroll->y + pos-3,
-            tab_width_offset + w * font_w, font_h+6
+            tab_offset + mark->buf->x + scroll->x + SPACING + x * font_w, 
+            mark->buf->y + scroll->y + pos-SPACING,
+            tab_width_offset + w * font_w, font_h + SPACING*2
         };
         SDL_RenderFillRect(renderer, &selection);
         yoff++;

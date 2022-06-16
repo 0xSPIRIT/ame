@@ -112,17 +112,17 @@ void buffer_draw(struct Buffer *buf, int real_view) {
         mark_draw(buffer_curr_mark(buf));
 
     for (line = buf->start_line; line; line = line->next) {
-        int pos = yoff*3 + yoff*font_h;
+        int pos = yoff*SPACING + yoff*font_h;
         if (pos > -font_h-buffer_curr_scroll(buf)->y && pos < window_height-buffer_curr_scroll(buf)->y) { /* Culling */
             if (line == buffer_curr_point(buf)->line && buf == curbuf && buf != minibuf) { /* Draw a little highlight on current line */
                 if (panel_left == panel_right && real_view != buf->curview) goto after_highlight;
                 
                 int w = window_width / panel_count();
                 SDL_Rect r = { 
-                    buf->x + buffer_curr_scroll(buf)->x + 3, 
-                    buf->y + font_h*yoff + 3*yoff + buffer_curr_scroll(buf)->y, 
-                    w - buffer_curr_scroll(buf)->x - 6, 
-                    font_h
+                    buf->x + buffer_curr_scroll(buf)->x + SPACING, 
+                    buf->y + font_h*yoff + SPACING*yoff + buffer_curr_scroll(buf)->y - SPACING/2,
+                    w - buffer_curr_scroll(buf)->x - SPACING*2,
+                    font_h + SPACING/2
                 };
                 SDL_SetRenderDrawColor(renderer, POINT.r, POINT.g, POINT.b, 40);
                 SDL_RenderFillRect(renderer, &r);
@@ -135,7 +135,7 @@ void buffer_draw(struct Buffer *buf, int real_view) {
             for (i = 0; i < line->hl_count; i++) {
                 highlight_update(&line->hls[i]);
                 if (line->hls[i].active) {
-                    highlight_draw(line->hls[i], 3 + buffer_curr_scroll(buf)->x, buf->y + font_h*yoff + 3*yoff + buffer_curr_scroll(buf)->y);
+                    highlight_draw(line->hls[i], SPACING + buffer_curr_scroll(buf)->x, buf->y + font_h*yoff + SPACING*yoff + buffer_curr_scroll(buf)->y);
                 }
             }
 
@@ -153,8 +153,15 @@ void buffer_draw(struct Buffer *buf, int real_view) {
 void buffer_limit_point(struct Buffer *buf) {
     if (buffer_curr_point(buf)->pos < 0) buffer_curr_point(buf)->pos = 0;
     if (buffer_curr_point(buf)->pos > buffer_curr_point(buf)->line->len) buffer_curr_point(buf)->pos = buffer_curr_point(buf)->line->len;
-    if (3 + buffer_curr_point(buf)->pos * font_w < -buffer_curr_scroll(buf)->target_x) {
+    if (SPACING + buffer_curr_point(buf)->pos * font_w < -buffer_curr_scroll(buf)->target_x) {
         buffer_curr_scroll(buf)->target_x = -buffer_curr_point(buf)->pos * font_w;
+    }
+    
+    if (buffer_curr_point(buf)->line->y >= buf->line_count) {
+        buffer_curr_point(buf)->line = buf->start_line;
+        while (buffer_curr_point(buf)->line->y < buf->line_count-1) {
+            buffer_curr_point(buf)->line = buffer_curr_point(buf)->line->next;
+        }
     }
 }
 
@@ -174,12 +181,12 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
         }
         line_type(buffer_curr_point(buf)->line, buffer_curr_point(buf)->pos++, *(event->text.text));
         
-        if (3 + buffer_curr_point(buf)->pos * font_w > (window_width/panel_count())-buffer_curr_scroll(buf)->target_x) {
-            buffer_curr_scroll(buf)->target_x = -buffer_curr_point(buf)->pos * font_w + (window_width/panel_count()) - font_w - 3;
+        if (SPACING + buffer_curr_point(buf)->pos * font_w > (window_width/panel_count())-buffer_curr_scroll(buf)->target_x) {
+            buffer_curr_scroll(buf)->target_x = -buffer_curr_point(buf)->pos * font_w + (window_width/panel_count()) - font_w - SPACING;
         }
     } else if (event->type == SDL_MOUSEWHEEL) {
         int y = event->wheel.y;
-        buffer_curr_scroll(buf)->target_y += 3 * y * (font_h + 3);
+        buffer_curr_scroll(buf)->target_y += SPACING * y * (font_h + SPACING);
     } else if (event->type == SDL_KEYDOWN) {
   keydown:
         switch (event->key.keysym.sym) {
@@ -202,9 +209,9 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                 } else {
                     buf->on_return();
                 }
-                int pos = buffer_curr_point(buf)->line->y*3 + buffer_curr_point(buf)->line->y*font_h;
+                int pos = buffer_curr_point(buf)->line->y*SPACING + buffer_curr_point(buf)->line->y*font_h;
                 if (pos < -font_h-buffer_curr_scroll(buf)->y || pos > window_height-buffer_curr_scroll(buf)->y-font_h*2) {
-                    buffer_curr_scroll(buf)->target_y = -font_h+(window_height-font_h*2)-(3*buffer_curr_point(buf)->line->y + buffer_curr_point(buf)->line->y * font_h);
+                    buffer_curr_scroll(buf)->target_y = -font_h+(window_height-font_h*2)-(SPACING*buffer_curr_point(buf)->line->y + buffer_curr_point(buf)->line->y * font_h);
                 }
                 break;
             }
@@ -270,7 +277,7 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
 
             case SDLK_l: {
                 if (is_ctrl()) {
-                    buffer_curr_scroll(buf)->target_y = -buffer_curr_point(buf)->line->y * (font_h + 3) + window_height/2 - font_h*2;
+                    buffer_curr_scroll(buf)->target_y = -buffer_curr_point(buf)->line->y * (font_h + SPACING) + window_height/2 - font_h*2;
                 }
                 break;
             }
@@ -338,7 +345,7 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                     }
                     buffer_limit_point(buf);
                 }
-                if (3 + buffer_curr_point(buf)->pos * font_w < -buffer_curr_scroll(buf)->target_x) {
+                if (SPACING + buffer_curr_point(buf)->pos * font_w < -buffer_curr_scroll(buf)->target_x) {
                     buffer_curr_scroll(buf)->target_x = -buffer_curr_point(buf)->pos * font_w;
                 }
                 break;
@@ -356,7 +363,7 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                         } else  buffer_curr_point(buf)->pos = buffer_curr_point(buf)->line->len;
                     }
                 }
-                if (3 + buffer_curr_point(buf)->pos * font_w > (window_width/panel_count())-buffer_curr_scroll(buf)->target_x) {
+                if (SPACING + buffer_curr_point(buf)->pos * font_w > (window_width/panel_count())-buffer_curr_scroll(buf)->target_x) {
                     buffer_curr_scroll(buf)->target_x = -buffer_curr_point(buf)->pos * font_w;
                 }
                 break;
@@ -374,9 +381,9 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                     buffer_curr_point(buf)->line = buffer_curr_point(buf)->line->prev;
                     buffer_limit_point(buf);
                 }
-                int pos = buffer_curr_point(buf)->line->y*3 + buffer_curr_point(buf)->line->y*font_h;
+                int pos = buffer_curr_point(buf)->line->y*SPACING + buffer_curr_point(buf)->line->y*font_h;
                 if (pos < -font_h-buffer_curr_scroll(buf)->y || pos > window_height-buffer_curr_scroll(buf)->y) {
-                    buffer_curr_scroll(buf)->target_y = -(3*buffer_curr_point(buf)->line->y + buffer_curr_point(buf)->line->y * font_h);
+                    buffer_curr_scroll(buf)->target_y = -(SPACING*buffer_curr_point(buf)->line->y + buffer_curr_point(buf)->line->y * font_h);
                 }
                 break;
             }
@@ -394,9 +401,9 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                     buffer_curr_point(buf)->line = buffer_curr_point(buf)->line->next;
                     buffer_limit_point(buf);
                 }
-                int pos = buffer_curr_point(buf)->line->y*3 + buffer_curr_point(buf)->line->y*font_h;
+                int pos = buffer_curr_point(buf)->line->y*SPACING + buffer_curr_point(buf)->line->y*font_h;
                 if (pos < -font_h-buffer_curr_scroll(buf)->y || pos > window_height-buffer_curr_scroll(buf)->y-font_h*2) {
-                    buffer_curr_scroll(buf)->target_y = -font_h+(window_height-font_h*2)-(3*buffer_curr_point(buf)->line->y + buffer_curr_point(buf)->line->y * font_h);
+                    buffer_curr_scroll(buf)->target_y = -font_h+(window_height-font_h*2)-(SPACING*buffer_curr_point(buf)->line->y + buffer_curr_point(buf)->line->y * font_h);
                 }
                 break;
             }
@@ -426,8 +433,8 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                             buffer_point_to_end(buf);
                         } else {
                             buffer_curr_point(buf)->pos = buffer_curr_point(buf)->line->len;
-                            if (3 + buffer_curr_point(buf)->pos * font_w > (window_width/panel_count())-buffer_curr_scroll(buf)->target_x) {
-                                buffer_curr_scroll(buf)->target_x = -buffer_curr_point(buf)->pos * font_w + (window_width/panel_count()) - font_w - 3;
+                            if (SPACING + buffer_curr_point(buf)->pos * font_w > (window_width/panel_count())-buffer_curr_scroll(buf)->target_x) {
+                                buffer_curr_scroll(buf)->target_x = -buffer_curr_point(buf)->pos * font_w + (window_width/panel_count()) - font_w - SPACING;
                             }
                         }
                         break;
@@ -494,7 +501,7 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
     
     /* We'll leave this alone for now. Not very important. */
     /*else if (event->type == SDL_MOUSEBUTTONDOWN && event->button.button == SDL_BUTTON_LEFT) {
-        int x = (event->button.x + 3)/font_w;
+        int x = (event->button.x + SPACING)/font_w;
         int y = (event->button.y/font_h);
         buffer_curr_point(buf)->pos = x;
         buffer_limit_point(buf);
@@ -598,12 +605,12 @@ void buffer_paste_text(struct Buffer *buf) {
     }
 
     
-    int y = 3*buffer_curr_point(buf)->line->y + buffer_curr_point(buf)->line->y * font_h;
+    int y = SPACING*buffer_curr_point(buf)->line->y + buffer_curr_point(buf)->line->y * font_h;
     if (y < -buffer_curr_scroll(buf)->target_y || y > window_height-font_h*2-buffer_curr_scroll(buf)->target_y) { 
         buffer_curr_scroll(buf)->target_y = -font_h+window_height-font_h*2-y;
     }
-    if (3 + buffer_curr_point(buf)->pos * font_w > window_width-buffer_curr_scroll(buf)->target_x) {
-        buffer_curr_scroll(buf)->target_x = -buffer_curr_point(buf)->pos * font_w + window_width - font_w - 3;
+    if (SPACING + buffer_curr_point(buf)->pos * font_w > window_width-buffer_curr_scroll(buf)->target_x) {
+        buffer_curr_scroll(buf)->target_x = -buffer_curr_point(buf)->pos * font_w + window_width - font_w - SPACING;
     }
 
 
@@ -871,8 +878,8 @@ void buffer_point_to_end(struct Buffer *buf) {
         buffer_curr_point(buf)->line = buffer_curr_point(buf)->line->next;
     }
     buffer_curr_point(buf)->pos = buffer_curr_point(buf)->line->len;
-    if (3*buffer_curr_point(buf)->line->y + buffer_curr_point(buf)->line->y * font_h > window_height - font_h*2 - buffer_curr_scroll(buf)->y) {
-        buffer_curr_scroll(buf)->target_y = -font_h+(window_height-font_h*2)-(3*buffer_curr_point(buf)->line->y + buffer_curr_point(buf)->line->y * font_h);
+    if (SPACING*buffer_curr_point(buf)->line->y + buffer_curr_point(buf)->line->y * font_h > window_height - font_h*2 - buffer_curr_scroll(buf)->y) {
+        buffer_curr_scroll(buf)->target_y = -font_h+(window_height-font_h*2)-(SPACING*buffer_curr_point(buf)->line->y + buffer_curr_point(buf)->line->y * font_h);
     }
 }
 

@@ -4,7 +4,7 @@
 /* The "minibuffer" is an area under the
    modeline where you can type in commands,
    such as opening or saving files. It's named
-   "minibuffer" because that's what it's named
+   "minibuffer" because that's what it's called
    in emacs. */
 
 #include "buffer.h"

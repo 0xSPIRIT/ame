@@ -2,7 +2,7 @@
 #define BUFFER_H_
 
 #define BUF_NAME_LEN 256
-#define SPACING 3
+#define SPACING 2
 
 #include <stdbool.h>
 #include <SDL2/SDL.h>
