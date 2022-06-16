@@ -151,19 +151,21 @@ void buffer_draw(struct Buffer *buf, int real_view) {
 }
 
 void buffer_limit_point(struct Buffer *buf) {
-    if (buffer_curr_point(buf)->pos < 0) buffer_curr_point(buf)->pos = 0;
-    if (buffer_curr_point(buf)->pos > buffer_curr_point(buf)->line->len) buffer_curr_point(buf)->pos = buffer_curr_point(buf)->line->len;
-    if (SPACING + buffer_curr_point(buf)->pos * font_w < -buffer_curr_scroll(buf)->target_x) {
-        buffer_curr_scroll(buf)->target_x = -buffer_curr_point(buf)->pos * font_w;
-    }
-    
-    if (buffer_curr_point(buf)->line->y >= buf->line_count) {
+    if (!buffer_curr_point(buf)->line || buffer_curr_point(buf)->line->y >= buf->line_count) {
         buffer_curr_point(buf)->line = buf->start_line;
         while (buffer_curr_point(buf)->line->y < buf->line_count-1) {
             buffer_curr_point(buf)->line = buffer_curr_point(buf)->line->next;
         }
     }
+    
+    if (buffer_curr_point(buf)->pos < 0) buffer_curr_point(buf)->pos = 0;
+    if (buffer_curr_point(buf)->pos > buffer_curr_point(buf)->line->len) buffer_curr_point(buf)->pos = buffer_curr_point(buf)->line->len;
+    if (SPACING + buffer_curr_point(buf)->pos * font_w < -buffer_curr_scroll(buf)->target_x) {
+        buffer_curr_scroll(buf)->target_x = -buffer_curr_point(buf)->pos * font_w;
+    }
 }
+
+static int pmx, pmy, pclicked = 0;
 
 void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
     if (event->type == SDL_TEXTINPUT) {
@@ -498,27 +500,42 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
     curbuf_scroll->x = curbuf_scroll->target_x;
     prevbuf_scroll->y = prevbuf_scroll->target_y;
     prevbuf_scroll->x = prevbuf_scroll->target_x;
+
+    int once = 0;
     
-    /* We'll leave this alone for now. Not very important. */
-    /*else if (event->type == SDL_MOUSEBUTTONDOWN && event->button.button == SDL_BUTTON_LEFT) {
-        int x = (event->button.x + SPACING)/font_w;
-        int y = (event->button.y/font_h);
+    if (!pclicked && mouse & SDL_BUTTON_LMASK) {
+        once = 1;
+    }
+    
+    if (mouse & SDL_BUTTON_LMASK) {
+        int focus_on_right = buf == panel_right;
+        if (panel_left == panel_right && buf->curview == 0) focus_on_right = 0;
+        
+        int x = event->button.x + SPACING;
+        if (focus_on_right) x -= window_width/2;
+        x /= font_w;
+        int y = (event->button.y/(font_h+SPACING));
+
         buffer_curr_point(buf)->pos = x;
+        for (buffer_curr_point(buf)->line = buf->start_line; 
+             buffer_curr_point(buf)->line && buffer_curr_point(buf)->line->y < y;
+             buffer_curr_point(buf)->line = buffer_curr_point(buf)->line->next);
+        
         buffer_limit_point(buf);
-        int displacement = y - buffer_curr_point(buf)->line->y;
-        int dir = sign(displacement);
-        if (displacement == 0) return;
-        while (displacement) {
-            if (dir == -1) {
-                if (buffer_curr_point(buf)->line->prev == NULL) return;
-                buffer_curr_point(buf)->line = buffer_curr_point(buf)->line->prev;
-            } else if (dir == 1) {
-                if (buffer_curr_point(buf)->line->next == NULL) return;
-                buffer_curr_point(buf)->line = buffer_curr_point(buf)->line->next;
-            }
-            displacement--;
+        
+        if (once) {
+            mark_unset(buffer_curr_mark(buf));
         }
-    }*/
+    }
+    if (mx != pmx && my != pmy && mouse & SDL_BUTTON_LMASK) {
+        if (!buffer_curr_mark(buf)->active) {
+            mark_set(buffer_curr_mark(buf), true);
+        }
+    }
+    
+    pmx = mx;
+    pmy = my;
+    pclicked = mouse & SDL_BUTTON_LMASK;
 }
 
 void buffer_backspace(struct Buffer *buf) {

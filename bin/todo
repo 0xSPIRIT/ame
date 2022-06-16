@@ -1,13 +1,13 @@
 Features to implement:
 
 Features:
-- Mouse support
 - Undo/Redo
 - Compilation / Running
 
 Bugs:
+- Switching buffers doesn't respect the current panel.
+- Performance (especially with two panels)- lots of latency.
 - ctrl+w sometimes doesn't work????
 - Fix crashes.
-- Performance (especially with two panels)- lots of latency.
 - Ctrl+tab doesn't really work properly.
 - Streamline x_scroll and y_scroll switching- make a function or something.

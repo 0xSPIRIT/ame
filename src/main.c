@@ -64,6 +64,7 @@ int main(int argc, char **argv) {
         int is_scroll = buffer_is_scrolling(curbuf);
         
         while (is_event) {
+            mouse = SDL_GetMouseState(&mx, &my);
             if (event.type == SDL_QUIT) {
                 running = false;
                 goto end_of_running_loop;
@@ -71,6 +72,15 @@ int main(int argc, char **argv) {
             if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_RESIZED) {
                 window_width = event.window.data1;
                 window_height = event.window.data2;
+            }
+            if (mouse & SDL_BUTTON_LEFT && panel_count() == 2) {
+                int focus_on_right = curbuf == panel_right;
+                if (panel_left == panel_right && curbuf->curview == 0) focus_on_right = 0;
+                if (mx < window_width/2) {
+                    if (focus_on_right) panel_swap_focus();
+                } else if (!focus_on_right) {
+                    panel_swap_focus();
+                }
             }
 
             buffer_handle_input(curbuf, &event);

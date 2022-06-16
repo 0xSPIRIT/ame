@@ -105,6 +105,8 @@ struct Line {
                                   Used in minibuffer for prompts. */
     struct Highlight hls[255]; /* A highlight, used in search. */
     int hl_count;              /* Amount of highlights in the line. */
+
+    SDL_Texture *pre_texture, *main_texture;
 };
 
 struct Line *line_allocate(struct Buffer *buf);

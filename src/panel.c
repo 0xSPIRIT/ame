@@ -95,12 +95,30 @@ void buffers_draw() {
     modeline_draw_rect();
 
     if (panel_left) {
+        int temp = panel_left->curview;
+        if (panel_left == panel_right) {
+            panel_left->curview = 0;
+        }
+        
         panel_left->x = 0;
         buffer_modeline_draw(panel_left);
+        
+        if (panel_left == panel_right) {
+            panel_left->curview = temp;
+        }
     }
     if (panel_right) {
+        int temp = panel_right->curview;
+        if (panel_left == panel_right) {
+            panel_right->curview = 1;
+        }
+        
         panel_right->x = window_width/2;
         buffer_modeline_draw(panel_right);
+        
+        if (panel_left == panel_right) {
+            panel_right->curview = temp;
+        }
     }
 
     buffer_draw(minibuf, 0);
