@@ -109,7 +109,7 @@ char* stristr(const char* str1, const char* str2) {
         }
         p1++;
     }
-    return *p2 == 0 ? (char*)r : 0 ;
+    return *p2 == 0 ? (char*)r : 0;
 }
 
 int is_directory(const char *path) {
@@ -121,13 +121,14 @@ int is_directory(const char *path) {
 
 /* Check which is more common at the start of lines: tabs or spaces.
  * If the file is longer than a certain amount, just go up to that
- * point.
+ * point. 
+ *            +ve = more tabs, -ve = more spaces.
  */
 int determine_tabs_indent_method(const char *str) {
     int indent = 0;
     int is_start_of_line = 1;
     int i = 0;
-    while (*str && i < 1500) {
+    while (*str && i < 500) {
         if (*str == '\n') {
             is_start_of_line = 1;
             ++str; continue;

@@ -2,12 +2,11 @@ Features to implement:
 
 Features:
 - Undo/Redo
-- Compilation / Running
 
 Bugs:
+- Tab selection drawing doesn't work somehow?
 - Switching buffers doesn't respect the current panel.
-- Performance (especially with two panels)- lots of latency.
 - ctrl+w sometimes doesn't work????
 - Fix crashes.
-- Ctrl+tab doesn't really work properly.
+- Ctrl+tab doesn't really work properly w/ multiple panels.
 - Streamline x_scroll and y_scroll switching- make a function or something.

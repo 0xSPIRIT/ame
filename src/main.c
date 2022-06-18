@@ -59,10 +59,16 @@ int main(int argc, char **argv) {
         SDL_Event event;
         start = SDL_GetPerformanceCounter();
 
-        int is_event = SDL_PollEvent(&event);
-        int did_do_event = is_event;
+        int is_event;
+
         int is_scroll = buffer_is_scrolling(curbuf);
-        
+        if (animated_highlights_active || is_scroll) {
+            is_event = SDL_PollEvent(&event);
+        } else {
+            is_event = SDL_WaitEvent(&event);
+        }
+        int did_do_event = is_event;
+
         while (is_event) {
             mouse = SDL_GetMouseState(&mx, &my);
             if (event.type == SDL_QUIT) {

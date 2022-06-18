@@ -37,9 +37,9 @@ void buffer_isearch_goto_matching(struct Buffer *buf, char *str) {
     
                 highlight_set(&line->hls[line->hl_count], line, (SDL_Color){0, 64, 127, 255}, point->pos, strlen(str), true);
     
-                int pos = point->line->y*3 + point->line->y*font_h;
+                int pos = point->line->y*SPACING + point->line->y*font_h;
                 if (pos < -font_h-scroll->y || pos > window_height-scroll->y-font_h*2) {
-                    scroll->target_y = -font_h+(window_height/2 - font_h*2)-(3*point->line->y + point->line->y * font_h);
+                    scroll->target_y = -font_h+(window_height/2 - font_h*2)-(SPACING*point->line->y + point->line->y * font_h);
                 }
                 goto end_of_buffer_isearch_goto_matching;
             } else {

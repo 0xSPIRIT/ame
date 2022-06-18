@@ -107,16 +107,19 @@ struct Line {
     int hl_count;              /* Amount of highlights in the line. */
 
     SDL_Texture *pre_texture, *main_texture;
+    int pre_texture_w, pre_texture_h;
+    int main_texture_w, main_texture_h;
 };
 
 struct Line *line_allocate(struct Buffer *buf);
 void         line_deallocate(struct Line *line);
 void         line_remove(struct Line *line);
-void         line_type(struct Line *line, int pos, char c);
+void         line_type(struct Line *line, int pos, char c, int update);
 void         line_type_string(struct Line *line, int pos, char *str);
 void         line_delete_char(struct Line *line, int pos);
 void         line_delete_chars_range(struct Line *line, int start, int end);
 void         line_draw(struct Line *line, int yoff, int x_scroll, int y_scroll);
+void         line_update_texture(struct Line *line);
 void         line_debug(struct Line *line);
 bool         line_is_empty(struct Line *line);
 

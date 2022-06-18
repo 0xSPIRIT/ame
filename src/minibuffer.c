@@ -218,6 +218,7 @@ void minibuffer_handle_input(SDL_Event *event) {
             }
         }
     }
+    line_update_texture(minibuf->start_line);
 }
 
 /* Take the command from minibuffer, split it by space, then parse. */
@@ -296,6 +297,7 @@ int minibuffer_execute() {
             memset(minibuf->start_line->str, 0, minibuf->start_line->cap);
             minibuf->start_line->len = 0;
             minibuf_point->pos = 0;
+            line_update_texture(minibuf->start_line);
             return 0; /* Don't go to end of function, where it will reset. */
         }
         case STATE_QUERY_REPLACE: {
@@ -313,7 +315,7 @@ int minibuffer_execute() {
             memset(minibuf->start_line->str, 0, minibuf->start_line->cap);
             minibuf->start_line->len = 0;
             minibuf->destructive = true;
-            line_type(minibuf->start_line, 0, 'y');
+            line_type(minibuf->start_line, 0, 'y', 1);
             minibuf_point->pos = 1;
             return 0; /* Don't go to end of function, where it will reset. */
         }
@@ -334,7 +336,7 @@ int minibuffer_execute() {
             minibuf_point->pos = 0;
 
             minibuf->destructive = true;
-            line_type(minibuf->start_line, 0, 'y');
+            line_type(minibuf->start_line, 0, 'y', 1);
             minibuf_point->pos = 1;
 
             if (!match) {
@@ -424,6 +426,7 @@ void minibuffer_reset() {
     minibuf->start_line->len = 0;
     minibuf_point->pos = 0;
     memset(minibuf->start_line->pre_str, 0, 255);
+    line_update_texture(minibuf->start_line);
 }
 
 void minibuffer_attempt_autocomplete(int direction) {

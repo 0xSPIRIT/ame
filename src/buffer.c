@@ -181,7 +181,7 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
             mark_delete_text(buffer_curr_mark(buf));
             mark_unset(buffer_curr_mark(buf));
         }
-        line_type(buffer_curr_point(buf)->line, buffer_curr_point(buf)->pos++, *(event->text.text));
+        line_type(buffer_curr_point(buf)->line, buffer_curr_point(buf)->pos++, *(event->text.text), 1);
         
         if (SPACING + buffer_curr_point(buf)->pos * font_w > (window_width/panel_count())-buffer_curr_scroll(buf)->target_x) {
             buffer_curr_scroll(buf)->target_x = -buffer_curr_point(buf)->pos * font_w + (window_width/panel_count()) - font_w - SPACING;
@@ -220,7 +220,11 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
             case SDLK_TAB: {
                 if (curbuf == minibuf) break;
                 if (is_ctrl()) {
-                    struct Buffer *bef = curbuf;
+                    int is_panel_left = curbuf == panel_left;
+                    if (panel_left == panel_right) {
+                        is_panel_left = curbuf->curview == 0;
+                    }
+                    
                     if (is_shift()) {
                         if (curbuf->next) 
                             curbuf = curbuf->next;
@@ -231,8 +235,8 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                         else while (curbuf->next) curbuf = curbuf->next;
                     }
 
-                    if (panel_left == bef) panel_left = curbuf;
-                    if (panel_right == bef) panel_right = curbuf;
+                    if (is_panel_left) panel_left = curbuf;
+                    if (!is_panel_left) panel_right = curbuf;
                 } else {
                     buffer_type_tab(buf);
                 }
@@ -617,10 +621,14 @@ void buffer_paste_text(struct Buffer *buf) {
             }
             continue;
         }
-        line_type(buffer_curr_point(buf)->line, buffer_curr_point(buf)->pos++, *text);
+        line_type(buffer_curr_point(buf)->line, buffer_curr_point(buf)->pos++, *text, 0);
         text++;
     }
 
+    struct Line *line;
+    for (line = buf->start_line; line; line = line->next) {
+        line_update_texture(line);
+    }
     
     int y = SPACING*buffer_curr_point(buf)->line->y + buffer_curr_point(buf)->line->y * font_h;
     if (y < -buffer_curr_scroll(buf)->target_y || y > window_height-font_h*2-buffer_curr_scroll(buf)->target_y) { 
@@ -673,7 +681,7 @@ int buffer_load_file(struct Buffer *buf, char *file) {
         int len = strlen(line);
         for (i = 0; i < len; i++) {
             if (line[i] == '\n') continue;
-            line_type(buffer_curr_point(buf)->line, buffer_curr_point(buf)->pos++, line[i]);
+            line_type(buffer_curr_point(buf)->line, buffer_curr_point(buf)->pos++, line[i], 0);
         }
         int line_len = buffer_curr_point(buf)->line->len;
 
@@ -690,6 +698,11 @@ int buffer_load_file(struct Buffer *buf, char *file) {
     buf->indent_mode = determine_tabs_indent_method(total_string);
 
     fclose(fp);
+
+    struct Line *l;
+    for (l = buf->start_line; l; l = l->next) {
+        line_update_texture(l);
+    }
 
     /* Remove the extra newline generated from the while loop. */
     if (line_is_empty(buffer_curr_point(buf)->line)) {
@@ -813,7 +826,7 @@ void buffer_type_tab(struct Buffer *buf) {
         line_type_string(buffer_curr_point(buf)->line, buffer_curr_point(buf)->pos, "    ");
         buffer_curr_point(buf)->pos += 4;
     } else {
-        line_type(buffer_curr_point(buf)->line, buffer_curr_point(buf)->pos, '\t');
+        line_type(buffer_curr_point(buf)->line, buffer_curr_point(buf)->pos, '\t', 1);
         buffer_curr_point(buf)->pos += 1;
     }
 }
@@ -905,10 +918,13 @@ struct Line *line_allocate(struct Buffer *buf) {
     line->buf = buf;
     line->cap = 16;
     line->str = alloc(line->cap, sizeof(char));
+    line->pre_texture = line->main_texture = NULL;
     return line;
 }
 
 void line_deallocate(struct Line *line) {
+    if (line->main_texture) SDL_DestroyTexture(line->main_texture);
+    if (line->pre_texture) SDL_DestroyTexture(line->pre_texture);
     dealloc(line->str);
     dealloc(line);
 }
@@ -936,7 +952,7 @@ void line_remove(struct Line *line) {
     line_deallocate(line);
 }
 
-void line_type(struct Line *line, int pos, char c) {
+void line_type(struct Line *line, int pos, char c, int update) {
     /* Shift everything from pos to len, then insert c. */
     int i;
 
@@ -958,13 +974,16 @@ void line_type(struct Line *line, int pos, char c) {
             line->str[j] = 0;
         }
     }
+
+    if (update) line_update_texture(line);
 }
 
 void line_type_string(struct Line *line, int pos, char *str) {
     while (*str) {
-        line_type(line, pos++, *str);
+        line_type(line, pos++, *str, 0);
         ++str;
     }
+    line_update_texture(line);
 }
 
 void line_delete_char(struct Line *line, int pos) {
@@ -974,6 +993,7 @@ void line_delete_char(struct Line *line, int pos) {
     }
     line->str[--line->len] = 0;
     /* Perhaps allocate a smaller space if len <= 1/2 cap? */
+    line_update_texture(line);
 }
 
 void line_delete_chars_range(struct Line *line, int start, int end) {
@@ -984,26 +1004,14 @@ void line_delete_chars_range(struct Line *line, int start, int end) {
     }
 }
 
-void line_draw(struct Line *line, int yoff, int scroll_x, int scroll_y) {
-    if (line->len == 0 && strlen(line->pre_str) == 0) return;
-
-    int pre_width = 0;
-
-    if (strlen(line->pre_str) > 0) {
+void line_update_texture(struct Line *line) {
+    if (strlen(line->pre_str)) {
         SDL_Surface *pre_surf = TTF_RenderText_Blended(font, line->pre_str, (SDL_Color){88, 98, 237, 255});
-        SDL_Texture *pre_texture = SDL_CreateTextureFromSurface(renderer, pre_surf);
-
-        pre_width = pre_surf->w;
-
-        const SDL_Rect dst = (SDL_Rect){
-            line->buf->x + scroll_x + SPACING,
-            line->buf->y + scroll_y + yoff * SPACING + yoff * font_h,
-            pre_surf->w, 
-            pre_surf->h
-        };
-        SDL_RenderCopy(renderer, pre_texture, NULL, &dst);
+        if (line->pre_texture) SDL_DestroyTexture(line->pre_texture);
+        line->pre_texture = SDL_CreateTextureFromSurface(renderer, pre_surf);
+        line->pre_texture_w = pre_surf->w;
+        line->pre_texture_h = pre_surf->h;
         SDL_FreeSurface(pre_surf);
-        SDL_DestroyTexture(pre_texture);
     }
 
     if (line->len > 0) {
@@ -1024,19 +1032,39 @@ void line_draw(struct Line *line, int yoff, int scroll_x, int scroll_y) {
         }
 
         SDL_Surface *surf = TTF_RenderText_Blended(font, draw_string, col);
-        SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surf);
+        if (line->main_texture) SDL_DestroyTexture(line->main_texture);
 
-        const SDL_Rect dst = (SDL_Rect){
-            line->buf->x + scroll_x + SPACING + pre_width, 
-            line->buf->y + scroll_y + yoff * SPACING + yoff * font_h,
-            surf->w, 
-            surf->h
-        };
-        SDL_RenderCopy(renderer, texture, NULL, &dst);
-        SDL_FreeSurface(surf);
-        SDL_DestroyTexture(texture);
+        line->main_texture = SDL_CreateTextureFromSurface(renderer, surf);
+        line->main_texture_w = surf->w;
+        line->main_texture_h = surf->h;
 
         dealloc(draw_string);
+    
+        SDL_FreeSurface(surf);
+    }
+}
+
+void line_draw(struct Line *line, int yoff, int scroll_x, int scroll_y) {
+    if (line->len == 0 && strlen(line->pre_str) == 0) return;
+
+    if (strlen(line->pre_str) > 0) {
+        const SDL_Rect dst = (SDL_Rect){
+            line->buf->x + scroll_x + SPACING,
+            line->buf->y + scroll_y + yoff * SPACING + yoff * font_h,
+            line->pre_texture_w,
+            line->pre_texture_h
+        };
+        SDL_RenderCopy(renderer, line->pre_texture, NULL, &dst);
+    }
+
+    if (line->len > 0) {
+        const SDL_Rect dst = (SDL_Rect){
+            line->buf->x + scroll_x + SPACING + line->pre_texture_w,
+            line->buf->y + scroll_y + yoff * SPACING + yoff * font_h,
+            line->main_texture_w, 
+            line->main_texture_h
+        };
+        SDL_RenderCopy(renderer, line->main_texture, NULL, &dst);
     }
 }
 

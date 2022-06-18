@@ -30,6 +30,7 @@ void highlight_set(struct Highlight *hl, struct Line *line, SDL_Color col, int p
 
 void highlight_stop(struct Highlight *hl) {
     hl->line->hl_count--;
+    animated_highlights_active--;
     memset(hl, 0, sizeof(*hl));
 }
 
