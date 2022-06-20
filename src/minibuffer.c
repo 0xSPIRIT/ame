@@ -407,7 +407,29 @@ int minibuffer_execute() {
         }
         case STATE_KILL_CURRENT_BUFFER: {
             if (*command == 'y') {
+                struct Buffer *new, *buf = prevbuf;
+
+                int was_same = panel_left == panel_right;
+
+                if (prevbuf->prev) {
+                    new = prevbuf->prev;
+                } else if (prevbuf->next) {
+                    new = prevbuf->next;
+                } else {
+                    break;
+                }
+                        
+                if (is_panel_left(buf)) {
+                    panel_left = new;
+                    panel_left->curview = 0;
+                    if (was_same) panel_right->curview = 1;
+                } else {
+                    panel_right = new;
+                    panel_right->curview = 1;
+                    if (was_same) panel_left->curview = 0;
+                }
                 buffer_kill(prevbuf);
+                prevbuf = new;
             } else if (*command == 'n') {
             } else {
                 strcpy(minibuf->start_line->pre_str, "Discard changes and kill buffer? (y/n) [Must be y or n]: ");
