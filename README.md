@@ -6,7 +6,7 @@ soon be uploading a timelapse of the entire development which I have recorded.
 
 # Screenshots
 
-![Showcase GIF](screenshots/ame.gif)
+![](screenshots/ame.gif)
 ![Screenshot](screenshots/screenshot1.png)
 
 # Features
