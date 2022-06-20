@@ -9,6 +9,7 @@ int font_w, font_h;
 
 Uint32 mouse;
 int mx, my;
+int pmx, pmy;
 
 double dt;
 

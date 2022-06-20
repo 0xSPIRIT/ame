@@ -123,6 +123,9 @@ int main(int argc, char **argv) {
             prevbuf->scroll.x = damp(prevbuf->scroll.x, prevbuf->scroll.target_x, 0.000001, dt);
 */
 
+            pmx = mx;
+            pmy = my;
+
             Uint32 end = SDL_GetPerformanceCounter();
             dt = (double)(1000*(end-start)) / SDL_GetPerformanceFrequency();
         }

@@ -10,6 +10,7 @@ extern SDL_Renderer *renderer;
 
 extern Uint32 mouse;
 extern int mx, my;
+extern int pmx, pmy;
 
 extern int window_width, window_height;
 extern int font_w, font_h;

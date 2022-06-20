@@ -75,7 +75,7 @@ static void buffer_draw_point(struct Buffer *buf, bool is_active) {
     for (i = 0; i < buffer_curr_point(buf)->pos; i++) {
         if (buffer_curr_point(buf)->line->str[i] == '\t') tab_offset += font_w * (4-1); /* -1 to remove the offset that's already there. */
     }
-        
+
     const SDL_Rect dst = {
         tab_offset + buf->x + buffer_curr_scroll(buf)->x + buffer_curr_point(buf)->pos * font_w + strlen(buffer_curr_point(buf)->line->pre_str) * font_w + SPACING,
         buf->y + buffer_curr_scroll(buf)->y + buffer_curr_point(buf)->line->y * font_h + SPACING * buffer_curr_point(buf)->line->y,
@@ -166,9 +166,9 @@ void buffer_limit_point(struct Buffer *buf) {
     }
 }
 
-static int pmx, pmy, pclicked = 0;
-
 void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
+    static int pclicked = 0;
+    
     if (event->type == SDL_TEXTINPUT) {
         if (buf->destructive) {
             buf->destructive = false;
@@ -190,6 +190,11 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
     } else if (event->type == SDL_MOUSEWHEEL) {
         int y = event->wheel.y;
         buffer_curr_scroll(buf)->target_y += SPACING * y * (font_h + SPACING);
+    } else if (event->type == SDL_MOUSEMOTION) {
+        if (mouse & SDL_BUTTON_LEFT && !buffer_curr_mark(buf)->active) {
+            printf("Mark set.\n");
+            mark_set(buffer_curr_mark(buf), true);
+        }
     } else if (event->type == SDL_KEYDOWN) {
   keydown:
         switch (event->key.keysym.sym) {
@@ -530,10 +535,13 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
         int focus_on_right = buf == panel_right;
         if (panel_left == panel_right && buf->curview == 0) focus_on_right = 0;
         
-        int x = event->button.x + SPACING;
+        int x = mx + SPACING;
         if (focus_on_right) x -= window_width/2;
         x /= font_w;
-        int y = (event->button.y/(font_h+SPACING));
+        x--;
+        if (x < 0) x = 0;
+        
+        int y = (event->button.y - curbuf_scroll->target_y)/(font_h+SPACING);
 
         buffer_curr_point(buf)->pos = x;
         for (buffer_curr_point(buf)->line = buf->start_line; 
@@ -543,17 +551,10 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
         buffer_limit_point(buf);
         
         if (once) {
+            printf("Mark unset.\n");
             mark_unset(buffer_curr_mark(buf));
         }
     }
-    if (mx != pmx && my != pmy && mouse & SDL_BUTTON_LMASK) {
-        if (!buffer_curr_mark(buf)->active) {
-            mark_set(buffer_curr_mark(buf), true);
-        }
-    }
-    
-    pmx = mx;
-    pmy = my;
     pclicked = mouse & SDL_BUTTON_LMASK;
 }
 
