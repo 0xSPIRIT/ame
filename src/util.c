@@ -25,25 +25,24 @@ float damp(float a, float b, float smooth, float dt) {
     return lerp(a, b, 1-pow(smooth, dt/1000.));
 }
 
-static int num_allocs = 0;
+/*static int num_allocs = 0;*/
 void *_alloc(size_t num, size_t size, char *file, int line) {
     void *ptr = calloc(num, size);
     if (!ptr) {
         fprintf(stderr, "Memory allocation error in file %s and line %d!\nAborting...\n", file, line);
         exit(1);
     }
-    num_allocs++;
+    /*num_allocs++;*/
     return ptr;
 }
 
-void _dealloc(void *ptr, char *file, int line) {
+void _dealloc(void *ptr) {
     free(ptr);
-    num_allocs--;
 }
 
-int get_leaked_allocations() {
+/*int get_leaked_allocations() {
     return num_allocs;
-}
+}*/
 
 void remove_directory(char *dst, char *src) {
     int start = strlen(src)-1;

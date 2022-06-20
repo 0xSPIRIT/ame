@@ -141,26 +141,29 @@ void mark_draw(struct Mark *mark) {
 
         int tab_offset = 0;
         int tab_width_offset = 0;
-        int i;
-
-        if (line == mark->start->line) {
-            for (i = 0; i < mark->start->pos; i++) {
-                if (line->str[i] == '\t') tab_offset += font_w * (4-1); /* -1 to remove the offset that's already there. */
+                
+        if (line == mark->start->line && line != mark->end->line) {
+            int i;
+            for (i = 0; i < line->len; i++) {
+                if (line->str[i] == '\t') tab_width_offset += font_w * (4-1);
             }
         } else if (line == mark->end->line) {
+            int i;
             for (i = 0; i < mark->end->pos; i++) {
-                if (line->str[i] == '\t') tab_offset += font_w * 4; /* -1 to remove the offset that's already there. */
+                if (line->str[i] == '\t') tab_width_offset += font_w * (4-1);
             }
         } else {
+            int i;
             for (i = 0; i < line->len; i++) {
-                if (line->str[i] == '\t') tab_width_offset += font_w * 4;
+                if (line->str[i] == '\t') tab_width_offset += font_w * 3;
             }
         }
 
         SDL_Rect selection = {
             tab_offset + mark->buf->x + scroll->x + SPACING + x * font_w, 
             mark->buf->y + scroll->y + pos-SPACING,
-            tab_width_offset + w * font_w, font_h + SPACING*2
+            tab_width_offset + w * font_w, 
+            font_h + SPACING*2
         };
         SDL_RenderFillRect(renderer, &selection);
         yoff++;

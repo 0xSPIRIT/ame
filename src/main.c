@@ -145,7 +145,5 @@ int main(int argc, char **argv) {
     SDL_Quit();
     TTF_Quit();
     
-    printf("Leaked allocations: %d\n", get_leaked_allocations());
-
     return 0;
 }

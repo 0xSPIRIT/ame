@@ -13,6 +13,7 @@
 #include "minibuffer.h"
 #include "panel.h"
 #include "isearch.h"
+#include "undo.h"
 
 struct Buffer *curbuf = NULL;
 struct Buffer *prevbuf = NULL;
@@ -29,6 +30,7 @@ struct Buffer *buffer_allocate(char name[BUF_NAME_LEN]) {
     buf->line_count = 1;
     buf->view_count = 2;
     buf->curview = 0;
+    buf->y = SPACING/2;
 
     for (i = 0; i < buf->view_count; i++) {
         buf->views[i].search = alloc(1, sizeof(struct Isearch));
@@ -122,7 +124,7 @@ void buffer_draw(struct Buffer *buf, int real_view) {
                     buf->x + buffer_curr_scroll(buf)->x + SPACING, 
                     buf->y + font_h*yoff + SPACING*yoff + buffer_curr_scroll(buf)->y - SPACING/2,
                     w - buffer_curr_scroll(buf)->x - SPACING*2,
-                    font_h + SPACING/2
+                    font_h + SPACING
                 };
                 SDL_SetRenderDrawColor(renderer, POINT.r, POINT.g, POINT.b, 40);
                 SDL_RenderFillRect(renderer, &r);
@@ -169,11 +171,12 @@ static int pmx, pmy, pclicked = 0;
 
 void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
     if (event->type == SDL_TEXTINPUT) {
-        if (buf->destructive) { 
+        if (buf->destructive) {
             buf->destructive = false;
             line_delete_chars_range(buf->start_line, 0, buf->start_line->len);
             buffer_curr_point(buf)->pos = 0;
         }
+        check_type_amt_undo(buf);
         if (*(event->text.text) == ' ' && is_ctrl()) goto keydown;
         if (*(event->text.text) == '}' && line_is_empty(buffer_curr_point(buf)->line)) buffer_remove_tab(buf);
 
@@ -215,15 +218,15 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                 if (pos < -font_h-buffer_curr_scroll(buf)->y || pos > window_height-buffer_curr_scroll(buf)->y-font_h*2) {
                     buffer_curr_scroll(buf)->target_y = -font_h+(window_height-font_h*2)-(SPACING*buffer_curr_point(buf)->line->y + buffer_curr_point(buf)->line->y * font_h);
                 }
+                buffer_save_undo_state(buf);
                 break;
             }
             case SDLK_TAB: {
                 if (curbuf == minibuf) break;
                 if (is_ctrl()) {
-                    int is_panel_left = curbuf == panel_left;
-                    if (panel_left == panel_right) {
-                        is_panel_left = curbuf->curview == 0;
-                    }
+                    int is_left = is_panel_left(curbuf);
+
+                    int was_same = panel_left == panel_right;
                     
                     if (is_shift()) {
                         if (curbuf->next) 
@@ -234,11 +237,19 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                             curbuf = curbuf->prev;
                         else while (curbuf->next) curbuf = curbuf->next;
                     }
-
-                    if (is_panel_left) panel_left = curbuf;
-                    if (!is_panel_left) panel_right = curbuf;
+                    
+                    if (is_left) {
+                        panel_left = curbuf;
+                        panel_left->curview = 0;
+                        if (was_same) panel_right->curview = 1;
+                    } else {
+                        panel_right = curbuf;
+                        panel_right->curview = 1;
+                        if (was_same) panel_left->curview = 0;
+                    }
                 } else {
                     buffer_type_tab(buf);
+                    buffer_save_undo_state(buf);
                 }
                 break;
             }
@@ -299,9 +310,11 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                         line_remove(point_prev.line);
                         buffer_curr_point(buf)->pos = 0;
                     }
+                    buffer_save_undo_state(buf);
                 } else if (buffer_curr_mark(buf)->active) {
                     mark_delete_text(buffer_curr_mark(buf));
                     mark_unset(buffer_curr_mark(buf));
+                    buffer_save_undo_state(buf);
                 } else {
                     if (buffer_curr_point(buf)->pos < buffer_curr_point(buf)->line->len) {
                         line_delete_char(buffer_curr_point(buf)->line, buffer_curr_point(buf)->pos);
@@ -313,6 +326,7 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                         line_remove(buffer_curr_point(buf)->line->next);
                         buffer_limit_point(buf);
                     }
+                    check_type_amt_undo(buf);
                 }
                 buffer_set_edited(buf, true);
                 break;
@@ -323,11 +337,14 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                     buffer_backward_word(buf);
                     if (point_prev.line == buffer_curr_point(buf)->line)
                         line_delete_chars_range(buffer_curr_point(buf)->line, buffer_curr_point(buf)->pos, point_prev.pos);
+                    buffer_save_undo_state(buf);
                 } else if (buffer_curr_mark(buf)->active) {
                     mark_delete_text(buffer_curr_mark(buf));
                     mark_unset(buffer_curr_mark(buf));
+                    buffer_save_undo_state(buf);
                 } else {
                     buffer_backspace(buf);
+                    check_type_amt_undo(buf);
                 }
                 buffer_set_edited(buf, true);
                 break;
@@ -480,6 +497,7 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                     mark_cut_text(buffer_curr_mark(buf));
                     mark_unset(buffer_curr_mark(buf));
                 }
+                buffer_save_undo_state(buf);
                 break;
             }
             case SDLK_v: {
@@ -489,6 +507,13 @@ void buffer_handle_input(struct Buffer *buf, SDL_Event *event) {
                         mark_unset(buffer_curr_mark(buf));
                     }
                     buffer_paste_text(buf);
+/*                    buffer_save_undo_state(buf);*/
+                }
+                break;
+            }
+            case SDLK_z: {
+                if (is_ctrl()) {
+                    buffer_undo(buf);
                 }
                 break;
             }
@@ -561,37 +586,41 @@ void buffer_backspace(struct Buffer *buf) {
 }
 
 void buffer_newline(struct Buffer *buf) {
-    if (!buffer_curr_point(buf)->line->next) {
-        buffer_curr_point(buf)->line->next = line_allocate(buf);
-        buffer_curr_point(buf)->line->next->y = buffer_curr_point(buf)->line->y+1;
-        buffer_curr_point(buf)->line->next->prev = buffer_curr_point(buf)->line;
-        if (buffer_curr_point(buf)->pos == buffer_curr_point(buf)->line->len) {
-            buffer_curr_point(buf)->line = buffer_curr_point(buf)->line->next;
-            buffer_curr_point(buf)->pos = 0;
+    if (buf->is_singular) return;
+    
+    struct Point *point = buffer_curr_point(buf);
+    if (!point->line->next) {
+        point->line->next = line_allocate(buf);
+        point->line->next->y = point->line->y+1;
+        point->line->next->prev = point->line;
+        if (point->pos == point->line->len) {
+            point->line = point->line->next;
+            point->pos = 0;
         } else {
-            line_type_string(buffer_curr_point(buf)->line->next, 0, buffer_curr_point(buf)->line->str + buffer_curr_point(buf)->pos);
-            line_delete_chars_range(buffer_curr_point(buf)->line, buffer_curr_point(buf)->pos, buffer_curr_point(buf)->line->len);
-            buffer_curr_point(buf)->line = buffer_curr_point(buf)->line->next;
+            line_type_string(point->line->next, 0, point->line->str + point->pos);
+            line_delete_chars_range(point->line, point->pos, point->line->len);
+            point->line = point->line->next;
+            point->pos = 0;
         }
     } else {
         struct Line *new_line, *old_next;
     
-        old_next = buffer_curr_point(buf)->line->next;
+        old_next = point->line->next;
         new_line = line_allocate(buf);
     
-        line_type_string(new_line, 0, buffer_curr_point(buf)->line->str + buffer_curr_point(buf)->pos);
-        int amt_chars_deleted = buffer_curr_point(buf)->line->len - buffer_curr_point(buf)->pos;
-        line_delete_chars_range(buffer_curr_point(buf)->line, buffer_curr_point(buf)->pos, buffer_curr_point(buf)->line->len);
+        line_type_string(new_line, 0, point->line->str + point->pos);
+        int amt_chars_deleted = point->line->len - point->pos;
+        line_delete_chars_range(point->line, point->pos, point->line->len);
     
         new_line->y = old_next->y;
-        buffer_curr_point(buf)->line->next = new_line;
+        point->line->next = new_line;
         new_line->next = old_next;
         old_next->prev = new_line;
-        new_line->prev = buffer_curr_point(buf)->line;
+        new_line->prev = point->line;
     
-        buffer_curr_point(buf)->line = buffer_curr_point(buf)->line->next;
+        point->line = point->line->next;
         if (amt_chars_deleted > 0) {
-            buffer_curr_point(buf)->pos = 0;
+            point->pos = 0;
         }
          
         buffer_limit_point(buf);
@@ -629,7 +658,7 @@ void buffer_paste_text(struct Buffer *buf) {
     for (line = buf->start_line; line; line = line->next) {
         line_update_texture(line);
     }
-    
+     
     int y = SPACING*buffer_curr_point(buf)->line->y + buffer_curr_point(buf)->line->y * font_h;
     if (y < -buffer_curr_scroll(buf)->target_y || y > window_height-font_h*2-buffer_curr_scroll(buf)->target_y) { 
         buffer_curr_scroll(buf)->target_y = -font_h+window_height-font_h*2-y;
@@ -637,7 +666,6 @@ void buffer_paste_text(struct Buffer *buf) {
     if (SPACING + buffer_curr_point(buf)->pos * font_w > window_width-buffer_curr_scroll(buf)->target_x) {
         buffer_curr_scroll(buf)->target_x = -buffer_curr_point(buf)->pos * font_w + window_width - font_w - SPACING;
     }
-
 
     SDL_free(clipboard);
 }
@@ -697,12 +725,11 @@ int buffer_load_file(struct Buffer *buf, char *file) {
 
     buf->indent_mode = determine_tabs_indent_method(total_string);
 
+    free(total_string);
+
     fclose(fp);
 
-    struct Line *l;
-    for (l = buf->start_line; l; l = l->next) {
-        line_update_texture(l);
-    }
+    /* We'll update the texture when it's in view and if texture==NULL. */
 
     /* Remove the extra newline generated from the while loop. */
     if (line_is_empty(buffer_curr_point(buf)->line)) {
@@ -861,7 +888,7 @@ struct Isearch *buffer_curr_search(struct Buffer *buf) {
     return buf->views[buf->curview].search;
 }
 
-static const char breakchars[] = " (){}[];\\\'\":/?,.<>=-_+*";
+static const char breakchars[] = " \t(){}[];\\\'\":/?,.<>=-_+*";
 
 static bool is_break(char c) {
     unsigned i;
@@ -874,26 +901,28 @@ static bool is_break(char c) {
 /* Moves to the end of the current word. If in spaces, step forward
    until you get to a word then go to the end of that. */
 void buffer_forward_word(struct Buffer *buf) {
-    if (buffer_curr_point(buf)->pos == buffer_curr_point(buf)->line->len && buffer_curr_point(buf)->line->next) {
-        buffer_curr_point(buf)->line = buffer_curr_point(buf)->line->next;
-        buffer_curr_point(buf)->pos = 0; return;
+    struct Point *point = buffer_curr_point(buf);
+    if (point->pos == point->line->len && point->line->next) {
+        point->line = point->line->next;
+        point->pos = 0; return;
     }
-    while (buffer_curr_point(buf)->pos < buffer_curr_point(buf)->line->len && is_break(buffer_curr_point(buf)->line->str[buffer_curr_point(buf)->pos])) buffer_curr_point(buf)->pos++;
-    while (buffer_curr_point(buf)->pos < buffer_curr_point(buf)->line->len && !is_break(buffer_curr_point(buf)->line->str[buffer_curr_point(buf)->pos])) buffer_curr_point(buf)->pos++;
+    while (point->pos < point->line->len && is_break(point->line->str[point->pos])) point->pos++;
+    while (point->pos < point->line->len && !is_break(point->line->str[point->pos])) point->pos++;
 }
 
 /* Moves to the beginning of the current word. If in spaces, step backward
    until you get to a word then go to the start of that. */
 void buffer_backward_word(struct Buffer *buf) {
-    if (buffer_curr_point(buf)->pos == 0 && buffer_curr_point(buf)->line->prev) {
-        buffer_curr_point(buf)->line = buffer_curr_point(buf)->line->prev;
-        buffer_curr_point(buf)->pos = buffer_curr_point(buf)->line->len; return;
+    struct Point *point = buffer_curr_point(buf);
+    if (point->pos == 0 && point->line->prev) {
+        point->line = point->line->prev;
+        point->pos = point->line->len; return;
     }
 
-    if (!is_break(buffer_curr_point(buf)->line->str[buffer_curr_point(buf)->pos] && is_break(buffer_curr_point(buf)->line->str[buffer_curr_point(buf)->pos-1]))) buffer_curr_point(buf)->pos--;
+    if (!is_break(point->line->str[point->pos] && is_break(point->line->str[point->pos-1]))) point->pos--;
 
-    while (buffer_curr_point(buf)->pos > 0 && is_break(buffer_curr_point(buf)->line->str[buffer_curr_point(buf)->pos])) buffer_curr_point(buf)->pos--;
-    while (buffer_curr_point(buf)->pos > 0 && !is_break(buffer_curr_point(buf)->line->str[buffer_curr_point(buf)->pos-1])) buffer_curr_point(buf)->pos--;
+    while (point->pos > 0 && is_break(point->line->str[point->pos])) point->pos--;
+    while (point->pos > 0 && !is_break(point->line->str[point->pos-1])) point->pos--;
 }
 
 void buffer_point_to_beginning(struct Buffer *buf) {
@@ -1039,7 +1068,6 @@ void line_update_texture(struct Line *line) {
         line->main_texture_h = surf->h;
 
         dealloc(draw_string);
-    
         SDL_FreeSurface(surf);
     }
 }
@@ -1048,6 +1076,7 @@ void line_draw(struct Line *line, int yoff, int scroll_x, int scroll_y) {
     if (line->len == 0 && strlen(line->pre_str) == 0) return;
 
     if (strlen(line->pre_str) > 0) {
+        if (!line->pre_texture) line_update_texture(line);
         const SDL_Rect dst = (SDL_Rect){
             line->buf->x + scroll_x + SPACING,
             line->buf->y + scroll_y + yoff * SPACING + yoff * font_h,
@@ -1058,6 +1087,7 @@ void line_draw(struct Line *line, int yoff, int scroll_x, int scroll_y) {
     }
 
     if (line->len > 0) {
+        if (!line->main_texture) line_update_texture(line);
         const SDL_Rect dst = (SDL_Rect){
             line->buf->x + scroll_x + SPACING + line->pre_texture_w,
             line->buf->y + scroll_y + yoff * SPACING + yoff * font_h,
@@ -1090,3 +1120,7 @@ bool line_is_empty(struct Line *line) {
     }
     return true;
 }
+#include "buffer.h"
+
+#include "buffer.h"
+

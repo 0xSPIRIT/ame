@@ -132,3 +132,11 @@ void buffers_draw() {
 int panel_count() {
     return (panel_left && panel_right) ? 2 : 1;
 }
+
+int is_panel_left(struct Buffer *buf) {
+    int is_panel_left = buf == panel_left;
+    if (panel_left == panel_right) {
+        is_panel_left = buf->curview == 0;
+    }
+    return is_panel_left;
+}

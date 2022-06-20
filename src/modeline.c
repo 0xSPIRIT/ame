@@ -16,7 +16,7 @@ void modeline_draw_rect() {
 
 void buffer_modeline_draw(struct Buffer *buf) {
     char text[512] = {0};
-    char line_string[64];
+    char line_string[64] = {0};
 
     sprintf(line_string, "L%d/%d", buf->views[buf->curview].point.line->y+1, buf->line_count);
 
@@ -33,4 +33,6 @@ void buffer_modeline_draw(struct Buffer *buf) {
         surf->w, surf->h
     };
     SDL_RenderCopy(renderer, texture, NULL, &dst);
+    SDL_FreeSurface(surf);
+    SDL_DestroyTexture(texture);
 }

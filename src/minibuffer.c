@@ -98,9 +98,14 @@ void minibuffer_handle_input(SDL_Event *event) {
                         minibuf->singular_state = STATE_FIND;
                         strcpy(minibuf->start_line->pre_str, "Find: ");
                     } else if (is_alt() && (!panel_left || !panel_right)) {
-                        if (curbuf == panel_left) panel_right = curbuf;
-                        else if (curbuf == panel_right) panel_left = curbuf;
-                        panel_left->curview = 0;
+                        int is_left_panel = is_panel_left(curbuf);
+                        if (is_left_panel) {
+                            panel_right = curbuf;
+                            panel_right->curview = 1;
+                        } else {
+                            panel_left = curbuf;
+                            panel_left->curview = 0;
+                        }
                     }
                 }
                 break;
@@ -167,6 +172,9 @@ void minibuffer_handle_input(SDL_Event *event) {
                         strcpy(minibuf->start_line->pre_str, "Discard changes and kill buffer? (y/n): ");
                     } else {
                         struct Buffer *new, *buf = curbuf;
+
+                        int was_same = panel_left == panel_right;
+
                         if (curbuf->prev) {
                             new = curbuf->prev;
                         } else if (curbuf->next) {
@@ -175,8 +183,15 @@ void minibuffer_handle_input(SDL_Event *event) {
                             break;
                         }
                         
-                        if (panel_left == buf) panel_left = new;
-                        if (panel_right == buf) panel_right = new;
+                        if (is_panel_left(buf)) {
+                            panel_left = new;
+                            panel_left->curview = 0;
+                            if (was_same) panel_right->curview = 1;
+                        } else {
+                            panel_right = new;
+                            panel_right->curview = 1;
+                            if (was_same) panel_left->curview = 0;
+                        }
                         buffer_kill(curbuf);
                         curbuf = new;
                     }
@@ -206,14 +221,14 @@ void minibuffer_handle_input(SDL_Event *event) {
 
             case SDLK_a: {
                 if (is_alt()) {
-                    if (curbuf == panel_left) panel_right = NULL;
-                    if (curbuf == panel_right) panel_left = NULL;
+                    if (is_panel_left(curbuf)) panel_right = NULL;
+                    if (!is_panel_left(curbuf)) panel_left = NULL;
                 } break;
             }
             case SDLK_e: {
                 if (is_alt() && panel_left && panel_right) {
-                    if (curbuf == panel_left) panel_left = NULL;
-                    if (curbuf == panel_right) panel_right = NULL;
+                    if (is_panel_left(curbuf)) panel_left = NULL;
+                    if (is_panel_left(curbuf)) panel_right = NULL;
                 } break;
             }
         }
@@ -235,12 +250,21 @@ int minibuffer_execute() {
             struct Buffer *buf;
             char buffer_name[256];
 
+            int was_same = panel_left == panel_right;
+            
             /* Check if file already exists in opened buffers. If so, switch to it. */
             struct Buffer *a;
             for (a = headbuf; a; a = a->next) {
                 if (0==strcmp(a->filename, command)) {
-                    if (prevbuf == panel_left) panel_left = a;
-                    if (prevbuf == panel_right) panel_right = a;
+                    if (is_panel_left(prevbuf)) {
+                        panel_left = a;
+                        panel_left->curview = 0;
+                        if (was_same) panel_right->curview = 1;
+                    } else {
+                        panel_right = a;
+                        panel_left->curview = 0;
+                        if (was_same) panel_left->curview = 0;
+                    }
                     prevbuf = a;
                     goto end;
                 }
@@ -248,8 +272,15 @@ int minibuffer_execute() {
 
             remove_directory(buffer_name, command);
             buf = buffer_allocate(buffer_name);
-            if (panel_left == prevbuf) panel_left = buf;
-            else if (panel_right == prevbuf) panel_right = buf;
+            if (is_panel_left(prevbuf)) {
+                panel_left = buf;
+                panel_left->curview = 0;
+                if (was_same) panel_right->curview = 1;
+            } else {
+                panel_right = buf;
+                panel_right->curview = 1;
+                if (was_same) panel_left->curview = 0;
+            }
 
             int directory_exists = !buffer_load_file(buf, command);
             if (!directory_exists) {
@@ -262,7 +293,6 @@ int minibuffer_execute() {
             buf->prev = prevbuf;
             prevbuf->next = buf;
             prevbuf = prevbuf->next;
-
             break;
         }
         case STATE_SAVE_FILE_AS: {
@@ -356,10 +386,16 @@ int minibuffer_execute() {
             struct Buffer *buf = headbuf;
             while (buf) {
                 if (0==strcmp(buf->name, command)) {
-                    if (prevbuf == panel_left) {
+                    int isleft = is_panel_left(prevbuf);
+                    int was_same = panel_left == panel_right;
+                    if (isleft) {
                         panel_left = buf;
-                    } else if (prevbuf == panel_right) {
+                        panel_left->curview = 0;
+                        if (was_same) panel_right->curview = 1;
+                    } else {
                         panel_right = buf;
+                        panel_left->curview = 1;
+                        if (was_same) panel_left->curview = 0;
                     }
                     prevbuf = buf; /* When minibuffer_return() is called, curbuf will be set to prevbuf. */
                     break;
