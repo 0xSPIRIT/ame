@@ -1,8 +1,8 @@
 # ame - A text editor written in notepad.
 
-Ame is a text editor written without using any normal IDE or text editor.
-It was written in MS notepad on Windows 10 over a total of 41 hours. I will
-soon be uploading a timelapse of the entire development which I have recorded.
+Ame is a text editor written without using any normal IDE or text editor, but with
+MS notepad on Windows 10 over a total of 41 hours. I'll soon be uploading a timelapse
+of the entire development which I recorded.
 
 # Screenshots
 
@@ -27,8 +27,8 @@ Aside from the obvious required features such as opening files, ame has:
 
 | Key | Action |
 | ----------- | ----------- |
-| Return / Ctrl+M | New line |
-| Tab | Insert 4 spaces / '\t' /  |
+| Return / Ctrl+M | New line or Accept |
+| Tab | Insert 4 spaces or '\t' |
 | Ctrl+Tab | Switch to next buffer |
 | Ctrl+Space | Set mark |
 | Ctrl+G | Escape from anything |
@@ -42,6 +42,7 @@ Aside from the obvious required features such as opening files, ame has:
 | Ctrl+Q | Query Replace |
 | Ctrl+H | Replace All |
 | Up/Down/Left/Right | Move cursor |
+| Ctrl + Up/Down/Left/Right | Move by block/word |
 | Home | Beginning of line |
 | End | End of line |
 | Ctrl+O | Open File |
